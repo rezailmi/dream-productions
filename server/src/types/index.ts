@@ -1,11 +1,49 @@
 // Shared types for Dream Machine backend
 
+export type SleepQuality = 'poor' | 'fair' | 'good' | 'excellent';
+export type SleepStageType = 'Core' | 'Deep' | 'REM' | 'Awake';
+
 export interface REMCycle {
   cycleNumber: number;
   startTime: string;
   durationMinutes: number;
   isInterrupted: boolean;
   isPrimaryDream: boolean;
+}
+
+export interface SleepStage {
+  type: SleepStageType;
+  startTime: string;
+  durationMinutes: number;
+}
+
+export interface HeartRateSpike {
+  time: string;
+  bpm: number;
+  percentageAboveBaseline: number;
+  context: string;
+}
+
+export interface HeartRateData {
+  restingBPM: number;
+  averageBPM: number;
+  minBPM: number;
+  maxBPM: number;
+  spikes: HeartRateSpike[];
+}
+
+// Demo sleep data format (used when not connected to WHOOP)
+export interface SleepSession {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  totalDurationMinutes: number;
+  sleepQuality: SleepQuality;
+  wakeUps: number;
+  remCycles: REMCycle[];
+  stages: SleepStage[];
+  heartRateData: HeartRateData;
 }
 
 export interface WhoopSleepData {
@@ -112,3 +150,6 @@ export interface OAuthTokens {
   refreshToken?: string;
   expiresAt?: Date;
 }
+
+// Union type for sleep data - can be either WHOOP or demo format
+export type AnySleepData = WhoopSleepData | SleepSession;

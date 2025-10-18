@@ -4,17 +4,28 @@ import { Strategy as OAuth2Strategy } from 'passport-oauth2';
 
 const router = Router();
 
+// Configure passport serialization for sessions
+passport.serializeUser((user: any, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user: any, done) => {
+  done(null, user);
+});
+
 // Configure WHOOP OAuth2 Strategy
+// Note: Environment variables are loaded in config.ts before this runs
 passport.use('whoop', new OAuth2Strategy(
   {
     authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
     tokenURL: 'https://api.prod.whoop.com/oauth/oauth2/token',
-    clientID: process.env.WHOOP_CLIENT_ID || '',
-    clientSecret: process.env.WHOOP_CLIENT_SECRET || '',
+    clientID: process.env.WHOOP_CLIENT_ID!,
+    clientSecret: process.env.WHOOP_CLIENT_SECRET!,
     callbackURL: process.env.WHOOP_CALLBACK_URL || 'http://localhost:3000/auth/whoop/callback',
     scope: ['read:sleep', 'read:recovery', 'read:cycles'],
+    state: true, // Enable state parameter for CSRF protection (requires express-session)
   },
-  async (accessToken, refreshToken, profile, done) => {
+  async (accessToken: any, refreshToken: any, profile: any, done: any) => {
     // Store tokens securely - in production, use a database
     // For now, we'll pass them through the callback
     const tokens = {
@@ -31,7 +42,7 @@ router.get('/whoop', passport.authenticate('whoop'));
 
 // WHOOP OAuth callback
 router.get('/whoop/callback',
-  passport.authenticate('whoop', { session: false }),
+  passport.authenticate('whoop'),
   (req, res) => {
     const user = req.user as any;
 

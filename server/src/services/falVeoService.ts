@@ -1,7 +1,7 @@
 import { fal } from '@fal-ai/client';
 import { VeoVideoRequest, VeoVideoResponse } from '../types';
 
-export class VeoService {
+export class FalVeoService {
   constructor() {
     // Configure Fal.ai client with API key
     fal.config({
@@ -19,11 +19,14 @@ export class VeoService {
    */
   async generateVideo(request: VeoVideoRequest): Promise<VeoVideoResponse> {
     try {
-      console.log('Fal.ai Veo3 Request:', {
-        prompt: request.prompt.substring(0, 100) + '...',
-        duration: `${request.durationSeconds}s`,
-        resolution: request.resolution,
-      });
+      console.log('   🔧 Fal.ai Configuration:');
+      console.log('      Model: fal-ai/veo3');
+      console.log('      Duration:', `${request.durationSeconds}s`);
+      console.log('      Resolution:', request.resolution);
+      console.log('      Aspect Ratio:', request.aspectRatio);
+      console.log('      Enhance Prompt: Yes');
+
+      console.log('\n   📡 Sending request to Fal.ai...');
 
       // Use fal.subscribe for synchronous waiting (recommended)
       const result = await fal.subscribe('fal-ai/veo3', {
@@ -37,21 +40,41 @@ export class VeoService {
         },
         logs: true,
         onQueueUpdate: (update) => {
-          if (update.status === 'IN_PROGRESS') {
-            console.log('Video generation in progress...');
+          if (update.status === 'IN_QUEUE') {
+            console.log('   ⏸️  In queue, waiting to start...');
+          } else if (update.status === 'IN_PROGRESS') {
+            console.log('   🎬 Video generation in progress...');
+            if (update.logs) {
+              update.logs.forEach((log: any) => {
+                console.log('      Log:', log.message || log);
+              });
+            }
           }
         },
       });
 
-      console.log('Fal.ai video generation complete!');
+      console.log('   ✅ Fal.ai video generation complete!');
+
+      // DEBUG: Log the complete raw response from Fal.ai
+      console.log('\n   🔍 DEBUG: Raw Fal.ai result object:');
+      console.log(JSON.stringify(result, null, 2));
+
+      const videoUrl = (result as any).data?.video?.url;
+      console.log('\n   🔍 DEBUG: Extracted videoUrl from result.data.video.url:', videoUrl);
+      console.log('   🔍 DEBUG: result.data.video =', (result as any).data?.video);
+      console.log('   📹 Video URL:', videoUrl);
 
       return {
         operationId: (result as any).requestId || `veo_${Date.now()}`,
         status: 'complete',
-        videoUrl: (result as any).video.url,
+        videoUrl,
       };
     } catch (error: any) {
-      console.error('Fal.ai Veo Error:', error);
+      console.log('   ❌ Fal.ai Error:');
+      console.log('      Message:', error.message);
+      if (error.body) {
+        console.log('      Details:', JSON.stringify(error.body, null, 2));
+      }
       return {
         operationId: `error_${Date.now()}`,
         status: 'failed',
@@ -111,7 +134,7 @@ export class VeoService {
         return {
           operationId,
           status: 'complete',
-          videoUrl: (result as any).video.url,
+          videoUrl: (result as any).data?.video?.url,
         };
       }
 
@@ -149,10 +172,14 @@ export class VeoService {
         requestId: operationId,
       });
 
+      console.log('\n   🔍 DEBUG: waitForVideo result object:');
+      console.log(JSON.stringify(result, null, 2));
+      console.log('   🔍 DEBUG: Accessing result.data.video.url:', (result as any).data?.video?.url);
+
       return {
         operationId,
         status: 'complete',
-        videoUrl: (result as any).video.url,
+        videoUrl: (result as any).data?.video?.url,
       };
     } catch (error: any) {
       console.error('Fal.ai wait error:', error);

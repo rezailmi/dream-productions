@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { WhoopSleepData, DreamNarrative, DreamScene } from '../types';
+import { AnySleepData, WhoopSleepData, SleepSession, DreamNarrative, DreamScene } from '../types';
 
 export class GroqService {
   private client: OpenAI;
@@ -14,12 +14,12 @@ export class GroqService {
   /**
    * Generate dream narrative from sleep data
    */
-  async generateDreamNarrative(sleepData: WhoopSleepData): Promise<DreamNarrative> {
+  async generateDreamNarrative(sleepData: AnySleepData): Promise<DreamNarrative> {
     try {
       const prompt = this.buildPrompt(sleepData);
 
       const completion = await this.client.chat.completions.create({
-        model: 'mixtral-8x7b-32768', // Fast, high-quality model
+        model: 'llama-3.3-70b-versatile', // High-quality model for creative tasks
         messages: [
           {
             role: 'system',
@@ -50,18 +50,70 @@ export class GroqService {
   /**
    * Build the prompt for dream generation
    */
-  private buildPrompt(sleepData: WhoopSleepData): string {
-    const score = sleepData.score;
-    if (!score) {
-      throw new Error('Sleep data not scored');
-    }
+  private buildPrompt(sleepData: AnySleepData): string {
+    // Type guard to check if it's WHOOP data
+    const isWhoopData = (data: AnySleepData): data is WhoopSleepData => {
+      return 'score' in data && data.score !== undefined;
+    };
 
-    const totalSleepMinutes = Math.round(score.stage_summary.total_in_bed_time_milli / 60000);
-    const remMinutes = Math.round(score.stage_summary.total_rem_sleep_time_milli / 60000);
-    const deepSleepMinutes = Math.round(score.stage_summary.total_slow_wave_sleep_time_milli / 60000);
-    const disturbances = score.stage_summary.disturbance_count;
-    const cycleCount = score.stage_summary.sleep_cycle_count;
-    const sleepQuality = score.sleep_performance_percentage;
+    // Type guard to check if it's demo data
+    const isDemoData = (data: AnySleepData): data is SleepSession => {
+      return 'remCycles' in data && 'stages' in data;
+    };
+
+    let totalSleepMinutes: number;
+    let remMinutes: number;
+    let deepSleepMinutes: number;
+    let disturbances: number;
+    let cycleCount: number;
+    let sleepQuality: number;
+    let respiratoryRate: number;
+
+    if (isWhoopData(sleepData)) {
+      // Extract from WHOOP format
+      const score = sleepData.score;
+      if (!score) {
+        throw new Error('WHOOP sleep data not scored');
+      }
+
+      totalSleepMinutes = Math.round(score.stage_summary.total_in_bed_time_milli / 60000);
+      remMinutes = Math.round(score.stage_summary.total_rem_sleep_time_milli / 60000);
+      deepSleepMinutes = Math.round(score.stage_summary.total_slow_wave_sleep_time_milli / 60000);
+      disturbances = score.stage_summary.disturbance_count;
+      cycleCount = score.stage_summary.sleep_cycle_count;
+      sleepQuality = score.sleep_performance_percentage;
+      respiratoryRate = score.respiratory_rate;
+    } else if (isDemoData(sleepData)) {
+      // Extract from demo format
+      totalSleepMinutes = sleepData.totalDurationMinutes;
+
+      // Calculate REM minutes from stages
+      remMinutes = sleepData.stages
+        .filter(stage => stage.type === 'REM')
+        .reduce((sum, stage) => sum + stage.durationMinutes, 0);
+
+      // Calculate deep sleep minutes
+      deepSleepMinutes = sleepData.stages
+        .filter(stage => stage.type === 'Deep')
+        .reduce((sum, stage) => sum + stage.durationMinutes, 0);
+
+      disturbances = sleepData.wakeUps;
+      cycleCount = sleepData.remCycles.length;
+
+      // Convert sleep quality string to percentage
+      const qualityMap: Record<string, number> = {
+        'poor': 60,
+        'fair': 75,
+        'good': 85,
+        'excellent': 95
+      };
+      sleepQuality = qualityMap[sleepData.sleepQuality] || 75;
+
+      // Estimate respiratory rate from heart rate data (rough approximation)
+      respiratoryRate = Math.round((sleepData.heartRateData.averageBPM || 60) / 4);
+    } else {
+      throw new Error('Invalid sleep data format');
+    }
 
     return `Generate a vivid, cinematic dream narrative based on this sleep data:
 
@@ -71,7 +123,7 @@ Sleep Analysis:
 - Deep Sleep: ${deepSleepMinutes} minutes
 - Sleep Disturbances: ${disturbances}
 - Sleep Quality Score: ${sleepQuality}%
-- Respiratory Rate: ${score.respiratory_rate} breaths/min
+- Respiratory Rate: ${respiratoryRate} breaths/min
 
 Context:
 ${disturbances > 3 ? '- Restless night with multiple wake-ups suggests fragmented, intense dreams' : '- Peaceful sleep suggests flowing, cohesive dream narrative'}

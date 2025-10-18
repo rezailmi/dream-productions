@@ -14,7 +14,7 @@ class APIClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 120000, // 2 minutes (for video generation)
+      timeout: 300000, // 5 minutes (for video generation)
     });
   }
 

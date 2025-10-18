@@ -26,7 +26,30 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         dreamStorage.getWhoopToken(),
       ]);
 
-      setDreams(storedDreams);
+      // Clean up any stuck "generating" dreams from previous sessions
+      const cleanedDreams = storedDreams.map((dream) => {
+        if (dream.status === 'generating') {
+          console.log(`Cleaning up stuck dream: ${dream.id}`);
+          return {
+            ...dream,
+            status: 'failed' as const,
+            title: 'Dream Generation Interrupted',
+            error: 'Generation was interrupted. Please try again.',
+          };
+        }
+        return dream;
+      });
+
+      // Save cleaned dreams back to storage
+      if (cleanedDreams.some((d, i) => d.status !== storedDreams[i].status)) {
+        await Promise.all(
+          cleanedDreams
+            .filter((d, i) => d.status !== storedDreams[i].status)
+            .map((dream) => dreamStorage.saveDream(dream))
+        );
+      }
+
+      setDreams(cleanedDreams);
       if (storedToken) {
         setWhoopAccessToken(storedToken);
       }
@@ -63,17 +86,22 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const generateDream = async (sleepSessionId: string) => {
+    // Declare generatingDream outside try block so it's accessible in catch
+    let generatingDream: Dream | null = null;
+
     try {
       setIsGeneratingDream(true);
 
       // Find the sleep session
       const sleepSession = sleepSessions.find((s) => s.id === sleepSessionId);
       if (!sleepSession) {
-        throw new Error('Sleep session not found');
+        setIsGeneratingDream(false);
+        Alert.alert('Error', 'Sleep session not found');
+        return;
       }
 
       // Create a generating dream placeholder
-      const generatingDream: Dream = {
+      generatingDream = {
         id: `dream_${Date.now()}`,
         sleepSessionId: sleepSession.id,
         title: 'Generating Dream...',
@@ -86,7 +114,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       };
 
       // Add to dreams list
-      setDreams((prev) => [generatingDream, ...prev]);
+      setDreams((prev) => [generatingDream!, ...prev]);
       await dreamStorage.saveDream(generatingDream);
 
       // Generate dream via backend API
@@ -107,7 +135,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         error: result.error,
       };
 
-      setDreams((prev) => prev.map((d) => (d.id === generatingDream.id ? completedDream : d)));
+      setDreams((prev) => prev.map((d) => (d.id === generatingDream!.id ? completedDream : d)));
       await dreamStorage.saveDream(completedDream);
 
       if (completedDream.status === 'complete') {
@@ -117,6 +145,23 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error generating dream:', error);
+
+      // Only create failed dream if we successfully created a generating dream
+      if (generatingDream) {
+        const failedDream: Dream = {
+          ...generatingDream,
+          status: 'failed' as const,
+          title: 'Dream Generation Failed',
+          error: error.message || 'Failed to generate dream',
+        };
+
+        // Update the dream to failed status
+        setDreams((prev) => prev.map((d) => (d.id === generatingDream!.id ? failedDream : d)));
+
+        // Save the failed dream
+        await dreamStorage.saveDream(failedDream);
+      }
+
       Alert.alert('Error', error.message || 'Failed to generate dream');
     } finally {
       setIsGeneratingDream(false);
@@ -139,6 +184,16 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const handleDeleteDream = async (dreamId: string) => {
+    try {
+      await dreamStorage.deleteDream(dreamId);
+      setDreams((prev) => prev.filter((d) => d.id !== dreamId));
+    } catch (error: any) {
+      console.error('Error deleting dream:', error);
+      Alert.alert('Error', 'Failed to delete dream. Please try again.');
+    }
+  };
+
   return (
     <HealthDataContext.Provider
       value={{
@@ -150,6 +205,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         setWhoopAccessToken: handleSetWhoopAccessToken,
         fetchSleepData,
         generateDream,
+        deleteDream: handleDeleteDream,
         isGeneratingDream,
       }}
     >

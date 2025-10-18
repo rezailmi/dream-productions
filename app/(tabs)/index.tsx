@@ -8,7 +8,7 @@ import { DreamCard } from '../../components/DreamCard';
 import Colors from '../../constants/Colors';
 
 export default function HomeScreen() {
-  const { dreams, isGeneratingDream, generateDream, sleepSessions } = useHealthData();
+  const { dreams, isGeneratingDream, generateDream, deleteDream, sleepSessions } = useHealthData();
 
   const handleGenerateDemo = async () => {
     if (sleepSessions.length > 0) {
@@ -44,11 +44,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your Dreams</Text>
-          <Text style={styles.headerSubtitle}>{dreams.length} dream{dreams.length !== 1 ? 's' : ''} generated</Text>
-        </View>
-
         {isGeneratingDream && (
           <View style={styles.generatingBanner}>
             <ActivityIndicator size="small" color={Colors.primaryText} />
@@ -57,12 +52,12 @@ export default function HomeScreen() {
         )}
 
         {dreams.map((dream) => (
-          <DreamCard key={dream.id} dream={dream} />
+          <DreamCard key={dream.id} dream={dream} onDelete={deleteDream} />
         ))}
 
         <TouchableOpacity style={styles.generateButton} onPress={handleGenerateDemo}>
           <Ionicons name="add-circle" size={24} color={Colors.primaryText} />
-          <Text style={styles.generateButtonText}>Generate Another Dream</Text>
+          <Text style={styles.generateButtonText}>Generate</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -115,7 +110,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     marginBottom: 24,

@@ -70,10 +70,24 @@ export default function ProfileScreen() {
       const authUrl = `${API_BASE_URL}/auth/whoop`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, 'exp://localhost:8081/--/auth');
 
-      if (result.type === 'success') {
-        // Tokens will be handled by deep link listener
-        console.log('OAuth flow completed');
-      } else {
+      if (result.type === 'success' && result.url) {
+        // Extract tokens from the callback URL
+        console.log('OAuth completed, processing URL:', result.url);
+        const params = new URL(result.url).searchParams;
+        const accessToken = params.get('accessToken');
+        const error = params.get('message');
+
+        if (error) {
+          Alert.alert('Authentication Error', error);
+        } else if (accessToken) {
+          console.log('Access token received, saving...');
+          await setWhoopAccessToken(accessToken);
+          setDataSource('whoop');
+          Alert.alert('Success', 'Connected to WHOOP!');
+        } else {
+          Alert.alert('Error', 'No access token received from WHOOP');
+        }
+      } else if (result.type === 'cancel') {
         Alert.alert('Authentication Cancelled', 'WHOOP authentication was cancelled.');
       }
     } catch (error: any) {

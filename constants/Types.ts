@@ -57,6 +57,7 @@ export interface HealthDataContextType {
   setWhoopAccessToken: (token: string | null) => void;
   fetchSleepData: () => Promise<void>;
   generateDream: (sleepSessionId: string) => Promise<void>;
+  deleteDream: (dreamId: string) => Promise<void>;
   isGeneratingDream: boolean;
 }
 

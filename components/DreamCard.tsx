@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Dream } from '../constants/Types';
@@ -9,11 +9,30 @@ import Colors from '../constants/Colors';
 interface DreamCardProps {
   dream: Dream;
   onPress?: () => void;
+  onDelete?: (dreamId: string) => void;
 }
 
-export function DreamCard({ dream, onPress }: DreamCardProps) {
+export function DreamCard({ dream, onPress, onDelete }: DreamCardProps) {
   const isGenerating = dream.status === 'generating';
   const hasFailed = dream.status === 'failed';
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Dream',
+      'Are you sure you want to delete this dream? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDelete?.(dream.id),
+        },
+      ]
+    );
+  };
 
   return (
     <TouchableOpacity
@@ -38,25 +57,37 @@ export function DreamCard({ dream, onPress }: DreamCardProps) {
                   <Ionicons name="sparkles" size={16} color={Colors.primaryText} />
                   <Text style={styles.moodText}>{dream.mood}</Text>
                 </View>
-                <Text style={styles.date}>
-                  {new Date(dream.generatedAt).toLocaleDateString()}
-                </Text>
+                <View style={styles.headerRight}>
+                  <Text style={styles.date}>
+                    {new Date(dream.generatedAt).toLocaleDateString()}
+                  </Text>
+                  {onDelete && (
+                    <TouchableOpacity
+                      onPress={handleDelete}
+                      style={styles.deleteButton}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               <Text style={styles.title}>{dream.title}</Text>
 
-              {dream.videoUrl && (
+              {dream.videoUrl ? (
                 <View style={styles.videoContainer}>
                   <VideoPlayer videoUrl={dream.videoUrl} height={200} />
                 </View>
+              ) : (
+                <View style={styles.videoErrorContainer}>
+                  <Ionicons name="videocam-off-outline" size={48} color={Colors.textMuted} />
+                  <Text style={styles.videoErrorText}>Video unavailable</Text>
+                  <Text style={styles.videoErrorSubtext}>
+                    Generation may have failed. Try generating again.
+                  </Text>
+                </View>
               )}
-
-              <ScrollView
-                style={styles.narrativeScroll}
-                showsVerticalScrollIndicator={false}
-              >
-                <Text style={styles.narrative}>{dream.narrative}</Text>
-              </ScrollView>
 
               {dream.scenes.length > 0 && (
                 <View style={styles.scenesContainer}>
@@ -139,6 +170,15 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 14,
     color: Colors.textSubtle,
+    marginRight: 12,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: 4,
+    opacity: 0.8,
   },
   title: {
     fontSize: 24,
@@ -149,14 +189,26 @@ const styles = StyleSheet.create({
   videoContainer: {
     marginBottom: 16,
   },
-  narrativeScroll: {
-    maxHeight: 150,
+  videoErrorContainer: {
+    backgroundColor: Colors.surfaceSubtle,
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
+    minHeight: 200,
   },
-  narrative: {
-    fontSize: 15,
-    lineHeight: 22,
+  videoErrorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    marginTop: 12,
+  },
+  videoErrorSubtext: {
+    fontSize: 14,
     color: Colors.textSubtle,
+    marginTop: 4,
+    textAlign: 'center',
   },
   scenesContainer: {
     marginTop: 8,
