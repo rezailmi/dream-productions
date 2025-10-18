@@ -55,7 +55,7 @@ dream-machine/
 - npm or yarn
 - Expo Go app (for testing on device) or Xcode (for iOS simulator)
 
-### Installation
+### Quick Start
 
 1. Clone the repository:
 ```bash
@@ -79,6 +79,17 @@ npm run ios
 ```
 
 Or scan the QR code with Expo Go on your iOS device.
+
+### Full Setup with Dream Generation
+
+For complete setup including WHOOP integration, Groq AI, and Fal.ai video generation, see the [detailed setup guide](plan/SETUP.md).
+
+### Documentation
+
+- [Setup Guide](plan/SETUP.md) - Complete setup instructions
+- [Implementation Summary](plan/IMPLEMENTATION_SUMMARY.md) - Technical architecture and implementation details
+- [Migration to Fal.ai](plan/MIGRATION_TO_FALAI.md) - Fal.ai migration guide
+- [WHOOP Data Structure](plan/WHOOP_DATA_STRUCTURE.md) - How we handle WHOOP API data
 
 ## Features by Screen
 

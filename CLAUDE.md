@@ -112,6 +112,14 @@ Glass morphism achieved via `expo-blur` BlurView component on iOS.
 - Services/Utils: camelCase (`demoData.ts`)
 - Constants: PascalCase (`Colors.ts`, `Types.ts`)
 
+### Documentation Organization
+
+- **Planning/Design Documents**: Store all generated markdown files in the `plan/` folder
+  - Examples: architecture plans, feature specifications, implementation guides, migration guides
+  - Includes: `SETUP.md`, `IMPLEMENTATION_SUMMARY.md`, `MIGRATION_TO_FALAI.md`, `WHOOP_DATA_STRUCTURE.md`
+  - Exception: Only root-level docs like `README.md`, `CLAUDE.md` stay at root
+- **Naming Convention**: Use SCREAMING_SNAKE_CASE for documentation files (`FEATURE_PLAN.md`, `API_DESIGN.md`)
+
 ### Component Structure
 
 ```tsx
@@ -151,7 +159,7 @@ The app now includes full dream generation capabilities using WHOOP API, Groq AI
 Express.js/TypeScript server handling:
 - **WHOOP OAuth** (`server/src/routes/auth.ts:10-71`) - OAuth 2.0 flow with passport-oauth2
 - **Sleep Data Fetching** (`server/src/services/whoopService.ts`) - WHOOP API integration
-- **REM Cycle Generation** (`server/src/utils/remCycleGenerator.ts`) - Creates realistic REM cycles from WHOOP aggregate data (see `WHOOP_DATA_STRUCTURE.md`)
+- **REM Cycle Generation** (`server/src/utils/remCycleGenerator.ts`) - Creates realistic REM cycles from WHOOP aggregate data (see `plan/WHOOP_DATA_STRUCTURE.md`)
 - **Dream Narratives** (`server/src/services/groqService.ts`) - Groq AI via OpenAI SDK
 - **Video Generation** (`server/src/services/veoService.ts`) - Fal.ai Veo3 integration
 - **Orchestration** (`server/src/services/dreamGenerationService.ts`) - Coordinates full pipeline
