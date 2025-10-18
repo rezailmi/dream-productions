@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dreammachine.app",
-      "deploymentTarget": "18.0",
+      "deploymentTarget": "26.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"

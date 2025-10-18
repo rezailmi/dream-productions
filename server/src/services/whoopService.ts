@@ -27,21 +27,42 @@ export class WhoopService {
     }
   ): Promise<{ records: WhoopSleepData[]; next_token?: string }> {
     try {
+      // Build query params, ensuring correct API parameter names
+      const queryParams: any = {
+        limit: params?.limit || 10,
+      };
+
+      // Only include start/end if provided (ISO 8601 format expected)
+      if (params?.start) queryParams.start = params.start;
+      if (params?.end) queryParams.end = params.end;
+      // WHOOP API v2 uses next_token (snake_case), not nextToken
+      if (params?.nextToken) queryParams.next_token = params.nextToken;
+
+      console.log('WHOOP API Request:', {
+        endpoint: '/activity/sleep',
+        params: queryParams,
+      });
+
       const response = await this.client.get('/activity/sleep', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        params: {
-          limit: params?.limit || 10,
-          start: params?.start,
-          end: params?.end,
-          nextToken: params?.nextToken,
-        },
+        params: queryParams,
+      });
+
+      console.log('WHOOP API Response:', {
+        recordCount: response.data?.records?.length || 0,
+        hasNextToken: !!response.data?.next_token,
       });
 
       return response.data;
     } catch (error: any) {
       console.error('WHOOP API Error (getSleepData):', `HTTP ${error.response?.status} ${error.response?.statusText || error.message}`);
+
+      // Log response data for debugging
+      if (error.response?.data) {
+        console.error('WHOOP API Error Details:', error.response.data);
+      }
 
       // Preserve the original error with response for proper status code handling
       if (error.response) {

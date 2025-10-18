@@ -32,6 +32,16 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
       }
     );
 
+    // Check if no records were returned
+    if (!sleepData.records || sleepData.records.length === 0) {
+      console.log('No WHOOP sleep records found for the requested date range');
+      return res.status(404).json({
+        error: 'No sleep data found',
+        message: 'No sleep records were found in your WHOOP account for the requested date range. Make sure you have been wearing your WHOOP device during sleep.',
+        records: [],
+      });
+    }
+
     // Map WHOOP data to our SleepSession format (optimized single-pass)
     const mappedSessions = sleepData.records.reduce((acc: any[], record: any) => {
       // Skip unscored sessions
@@ -45,7 +55,17 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
       }
 
       return acc;
-    }, [])
+    }, []);
+
+    // Check if all records were unscored
+    if (mappedSessions.length === 0) {
+      console.log('All WHOOP sleep records are unscored');
+      return res.status(404).json({
+        error: 'No scored sleep data',
+        message: 'Your WHOOP sleep records exist but are not yet scored. WHOOP typically scores sleep data within a few hours. Please try again later.',
+        records: [],
+      });
+    }
 
     res.json({
       records: mappedSessions,
@@ -53,6 +73,16 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
     });
   } catch (error: any) {
     console.error('Error fetching sleep data:', error);
+
+    // Provide specific error message for 404
+    if (error.response?.status === 404) {
+      return res.status(404).json({
+        error: 'No sleep data found',
+        message: 'No sleep records were found in your WHOOP account. This could mean:\n1. You haven\'t worn your WHOOP device during sleep\n2. The requested date range has no sleep data\n3. Your WHOOP account is new and doesn\'t have historical data yet',
+        records: [],
+      });
+    }
+
     res.status(error.response?.status || 500).json({
       error: error.message || 'Failed to fetch sleep data',
     });

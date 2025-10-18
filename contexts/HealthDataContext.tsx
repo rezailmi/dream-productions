@@ -252,9 +252,14 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Handle 404 (no data) - this is normal, just log
+      // Handle 404 (no data available)
       if (error.response?.status === 404) {
-        console.log('No WHOOP sleep data available for date range, keeping demo data');
+        console.log('No WHOOP sleep data available for date range');
+        Alert.alert(
+          'No WHOOP Data Found',
+          'No sleep data was found in your WHOOP account for the last 30 days. Make sure you\'ve been wearing your WHOOP device during sleep.\n\nUsing demo data for now.'
+        );
+        setSleepSessions(DEMO_SLEEP_DATA); // Fallback to demo data
         return;
       }
 
@@ -268,13 +273,16 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     if (whoopAccessToken) {
       setDataSource('whoop');
 
-      // Fetch last 30 days of sleep data
-      const today = new Date().toISOString().split('T')[0];
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+      // Fetch last 30 days of sleep data with proper ISO 8601 format
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
 
-      fetchWhoopSleepData(startDate, today);
+      // Format as ISO 8601 with timestamp (WHOOP API v2 requirement)
+      const startISO = startDate.toISOString(); // e.g., "2025-09-18T12:34:56.789Z"
+      const endISO = endDate.toISOString(); // e.g., "2025-10-18T12:34:56.789Z"
+
+      fetchWhoopSleepData(startISO, endISO);
     }
   }, [whoopAccessToken]);
 
