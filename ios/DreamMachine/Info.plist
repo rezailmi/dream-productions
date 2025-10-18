@@ -50,7 +50,7 @@
     <key>NSHealthUpdateUsageDescription</key>
     <string>Dream Machine needs to update your health data.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>Allow Dream Machine to access your microphone for audio features.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

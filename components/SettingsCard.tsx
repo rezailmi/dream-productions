@@ -11,6 +11,7 @@ interface SettingsCardProps {
   status: 'active' | 'inactive';
   onPress: () => void;
   isActive?: boolean;
+  isDanger?: boolean;
 }
 
 export const SettingsCard = ({
@@ -20,9 +21,10 @@ export const SettingsCard = ({
   status,
   onPress,
   isActive = false,
+  isDanger = false,
 }: SettingsCardProps) => {
-  const statusColor = status === 'active' ? Colors.success : Colors.inactive;
-  const statusText = status === 'active' ? 'Active' : 'Not Connected';
+  const statusColor = isDanger ? '#FF453A' : (status === 'active' ? Colors.success : Colors.inactive);
+  const statusText = isDanger ? 'Destructive' : (status === 'active' ? 'Active' : 'Not Connected');
   
   const CardContainer = Platform.OS === 'ios' ? BlurView : View;
   const blurProps = Platform.OS === 'ios' ? { intensity: 10, tint: 'dark' as const } : {};
@@ -44,7 +46,7 @@ export const SettingsCard = ({
           
           <View style={styles.textContainer}>
             <View style={styles.titleRow}>
-              <Text style={styles.title}>{title}</Text>
+              <Text style={[styles.title, isDanger && styles.titleDanger]}>{title}</Text>
               <View style={[styles.statusBadge, { backgroundColor: `${statusColor}25` }]}>
                 <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
               </View>
@@ -100,6 +102,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
     flex: 1,
+  },
+  titleDanger: {
+    color: '#FF453A',
   },
   description: {
     fontSize: 14,

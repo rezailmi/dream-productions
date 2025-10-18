@@ -105,6 +105,7 @@ export interface DreamNarrative {
   narrative: string;
   mood: string;
   emotionalContext: string;
+  oneiromancy?: Oneiromancy;
 }
 
 export interface DreamScene {
@@ -112,6 +113,15 @@ export interface DreamScene {
   description: string;
   prompt: string; // Optimized for video generation
   duration: number; // seconds
+}
+
+export interface Oneiromancy {
+  summary: string;
+  themes: string[];
+  symbols: string[];
+  advice: string;
+  category: string;
+  confidence: number; // 0..1
 }
 
 export interface VeoVideoRequest {

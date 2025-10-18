@@ -102,6 +102,7 @@ export interface HealthDataContextType {
   fetchSleepData: () => Promise<void>;
   generateDream: (sleepSessionId: string) => Promise<void>;
   deleteDream: (dreamId: string) => Promise<void>;
+  clearAllData: () => Promise<void>;
   isGeneratingDream: boolean;
   getSleepSessionByDate: (date: string) => SleepSession | WhoopSleepRecord | null;
   getDreamByDate: (date: string) => Dream | null;
@@ -128,6 +129,7 @@ export interface Dream {
   status: 'generating' | 'complete' | 'failed';
   generatedAt: string;
   error?: string;
+  prediction?: Oneiromancy;
 }
 
 export interface DreamScene {
@@ -135,5 +137,14 @@ export interface DreamScene {
   description: string;
   prompt: string;
   duration: number;
+}
+
+export interface Oneiromancy {
+  summary: string;
+  themes: string[];
+  symbols: string[];
+  advice: string;
+  category: string;
+  confidence: number; // 0..1
 }
 

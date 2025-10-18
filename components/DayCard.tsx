@@ -109,7 +109,7 @@ export function DayCard({
       <SleepDataCard
         sleepSession={sleepSession!}
         isWhoopData={isWhoopConnected}
-        showGenerateButton={!dream || dream?.status === 'generating'}
+        showGenerateButton={!dream || dream?.status === 'generating' || dream?.status === 'failed'}
         onGenerate={onGenerate}
         isGenerating={isGenerating}
       />
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   segmentButtonActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.primary,
   },
   separator: {
     width: 1,

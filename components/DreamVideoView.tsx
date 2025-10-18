@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Dream } from '../constants/Types';
 import { VideoPlayer } from './VideoPlayer';
 import Colors from '../constants/Colors';
@@ -34,6 +35,37 @@ export function DreamVideoView({ dream }: DreamVideoViewProps) {
           width={SCREEN_WIDTH - 40}
           height={SCREEN_HEIGHT * 0.6}
         />
+        {/* Vignette Overlay */}
+        <View style={styles.vignetteContainer} pointerEvents="none">
+          {/* Top gradient */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.8)', 'transparent']}
+            style={styles.vignetteTop}
+            pointerEvents="none"
+          />
+          {/* Bottom gradient */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={styles.vignetteBottom}
+            pointerEvents="none"
+          />
+          {/* Left gradient */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.8)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.vignetteLeft}
+            pointerEvents="none"
+          />
+          {/* Right gradient */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.vignetteRight}
+            pointerEvents="none"
+          />
+        </View>
       </View>
       <View style={styles.titleContainer}>
         <Text style={styles.title}>{dream.title}</Text>
@@ -74,6 +106,46 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     marginBottom: 20,
+    position: 'relative',
+  },
+  vignetteContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: SCREEN_WIDTH - 40,
+    height: SCREEN_HEIGHT * 0.6,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  vignetteTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '30%',
+  },
+  vignetteBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '30%',
+  },
+  vignetteLeft: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: '25%',
+  },
+  vignetteRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: '25%',
   },
   titleContainer: {
     paddingHorizontal: 20,

@@ -91,6 +91,19 @@ export class DreamStorage {
       throw error;
     }
   }
+
+  // Clear all app data
+  async clearAllData(): Promise<void> {
+    try {
+      await Promise.all([
+        AsyncStorage.removeItem(DREAMS_STORAGE_KEY),
+        AsyncStorage.removeItem(WHOOP_TOKEN_KEY),
+      ]);
+    } catch (error) {
+      console.error('Error clearing all data:', error);
+      throw error;
+    }
+  }
 }
 
 export default new DreamStorage();

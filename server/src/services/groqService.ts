@@ -23,7 +23,7 @@ export class GroqService {
         messages: [
           {
             role: 'system',
-            content: `You are a dream interpreter and creative writer who analyzes sleep data to generate vivid, cinematic dream narratives. You create immersive, first-person dream stories based on REM cycles, sleep quality, and physiological data. Your narratives are visual, emotional, and surreal - perfect for video generation.`,
+            content: `You are a dream interpreter and creative writer who analyzes sleep data to generate vivid, cinematic dream narratives AND a concise Oneiromancy prediction. Narratives are immersive, first-person, visual and emotional. The Oneiromancy summarizes symbols, themes, advice, category and confidence. Return strict JSON only.`,
           },
           {
             role: 'user',
@@ -115,7 +115,7 @@ export class GroqService {
       throw new Error('Invalid sleep data format');
     }
 
-    return `Generate a vivid, cinematic dream narrative based on this sleep data:
+    return `Generate a vivid, cinematic dream narrative based on this sleep data, and include a Oneiromancy prediction object:
 
 Sleep Analysis:
 - Total Sleep: ${totalSleepMinutes} minutes
@@ -130,7 +130,7 @@ ${disturbances > 3 ? '- Restless night with multiple wake-ups suggests fragmente
 ${remMinutes > 90 ? '- Extended REM periods indicate vivid, elaborate dream sequences' : '- Moderate REM suggests shorter dream fragments'}
 ${sleepQuality > 85 ? '- High sleep quality indicates surreal, fantastical elements' : '- Lower sleep quality may indicate anxiety or stress-themed dreams'}
 
-Generate a dream narrative with the following structure (use JSON format):
+Generate a dream narrative with the following structure (use strict JSON format only):
 
 {
   "title": "Poetic dream title (5-8 words)",
@@ -145,7 +145,15 @@ Generate a dream narrative with the following structure (use JSON format):
       "duration": 8
     },
     // Generate 3-5 scenes total
-  ]
+  ],
+  "oneiromancy": {
+    "summary": "2-3 sentence interpretation focused on emotional meaning and patterns",
+    "themes": ["theme1", "theme2", "theme3"],
+    "symbols": ["primary symbol(s) observed"],
+    "advice": "short, compassionate advice based on the dream",
+    "category": "Wealth|Love|Career|Danger|Health|Family|Animals|Water|Food|Travel|Spiritual|Death",
+    "confidence": 0.0
+  }
 }
 
 Rules:
@@ -155,6 +163,7 @@ Rules:
 - Each scene should be visually distinct and cinematic
 - Video prompts should be clear, actionable descriptions for AI video generation
 - Incorporate the sleep data context (disturbances = scene changes, high REM = elaborate imagery)
+- Return strict JSON without backticks or extra prose
 
 Generate the JSON response now:`;
   }
@@ -188,6 +197,14 @@ Generate the JSON response now:`;
           prompt: scene.prompt,
           duration: scene.duration || 8,
         })),
+        oneiromancy: parsed.oneiromancy ? {
+          summary: parsed.oneiromancy.summary || '',
+          themes: Array.isArray(parsed.oneiromancy.themes) ? parsed.oneiromancy.themes : [],
+          symbols: Array.isArray(parsed.oneiromancy.symbols) ? parsed.oneiromancy.symbols : [],
+          advice: parsed.oneiromancy.advice || '',
+          category: parsed.oneiromancy.category || '',
+          confidence: typeof parsed.oneiromancy.confidence === 'number' ? parsed.oneiromancy.confidence : 0.5,
+        } : undefined,
       };
     } catch (error: any) {
       console.error('Failed to parse narrative response:', error);
@@ -207,6 +224,14 @@ Generate the JSON response now:`;
             duration: 8,
           },
         ],
+        oneiromancy: {
+          summary: 'An ambiguous dream suggesting inner processing without clear symbols.',
+          themes: [],
+          symbols: [],
+          advice: 'Reflect on your day and note any lingering emotions.',
+          category: '',
+          confidence: 0.2,
+        },
       };
     }
   }

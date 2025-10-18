@@ -17,7 +17,7 @@ export const unstable_settings = {
 };
 
 export default function ProfileScreen() {
-  const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken } = useHealthData();
+  const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken, clearAllData, dreams } = useHealthData();
 
   useEffect(() => {
     // Handle OAuth callback via deep linking
@@ -104,6 +104,30 @@ export default function ProfileScreen() {
     setDataSource('demo');
   };
 
+  const handleClearAllData = () => {
+    const dreamCount = dreams.length;
+
+    Alert.alert(
+      'Clear All Data',
+      `This will permanently delete ${dreamCount} dream${dreamCount !== 1 ? 's' : ''} and disconnect your WHOOP account. This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All Data',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearAllData();
+              Alert.alert('Success', 'All data has been cleared.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear data. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -145,6 +169,20 @@ export default function ProfileScreen() {
             status={dataSource === 'demo' ? 'active' : 'inactive'}
             onPress={handleDemoPress}
             isActive={dataSource === 'demo'}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data Management</Text>
+
+          <SettingsCard
+            title="Clear All Data"
+            description={`Delete ${dreams.length} dream${dreams.length !== 1 ? 's' : ''} and reset to demo mode`}
+            icon="trash"
+            status="inactive"
+            onPress={handleClearAllData}
+            isActive={false}
+            isDanger={true}
           />
         </View>
 

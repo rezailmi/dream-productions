@@ -126,11 +126,26 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       setIsGeneratingDream(true);
 
       // Find the sleep session
-      const sleepSession = sleepSessions.find((s) => s.id === sleepSessionId);
-      if (!sleepSession || !isSleepSessionRecord(sleepSession)) {
+      const rawSession = sleepSessions.find((s) => s.id === sleepSessionId);
+      if (!rawSession) {
         setIsGeneratingDream(false);
-        Alert.alert('Error', 'Sleep session not found or not supported for dream generation');
+        Alert.alert('Error', 'Sleep session not found');
         return;
+      }
+
+      // Map WHOOP record to SleepSession if needed
+      let sleepSession: SleepSession;
+      if (isSleepSessionRecord(rawSession)) {
+        sleepSession = rawSession;
+      } else {
+        // It's a WHOOP record, map it
+        try {
+          sleepSession = mapWhoopRecordToSleepSession(rawSession as WhoopSleepRecord);
+        } catch (error) {
+          setIsGeneratingDream(false);
+          Alert.alert('Error', 'Unable to process WHOOP sleep data for dream generation');
+          return;
+        }
       }
 
       // Create a generating dream placeholder
@@ -154,6 +169,14 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       const result = await apiClient.generateDream(sleepSession);
 
       // Update dream with result
+      console.log('📦 Dream generation result received:', {
+        id: result.id,
+        hasVideo: !!result.videoUrl,
+        videoUrl: result.videoUrl,
+        hasPrediction: !!result.narrative.oneiromancy,
+        status: result.status,
+      });
+
       const completedDream: Dream = {
         id: result.id || generatingDream.id,
         sleepSessionId: sleepSession.id,
@@ -166,7 +189,16 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         status: result.status,
         generatedAt: result.generatedAt,
         error: result.error,
+        prediction: result.narrative.oneiromancy,
       };
+
+      console.log('💾 Completed dream object:', {
+        id: completedDream.id,
+        title: completedDream.title,
+        hasVideo: !!completedDream.videoUrl,
+        hasPrediction: !!completedDream.prediction,
+        status: completedDream.status,
+      });
 
       setDreams((prev) => prev.map((d) => (d.id === generatingDream!.id ? completedDream : d)));
       await dreamStorage.saveDream(completedDream);
@@ -227,6 +259,19 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const handleClearAllData = async () => {
+    try {
+      await dreamStorage.clearAllData();
+      setDreams([]);
+      setWhoopAccessToken(null);
+      setDataSource('demo');
+      setSleepSessions([...DEMO_SLEEP_DATA, ...DEMO_WHOOP_RECORDS]);
+    } catch (error: any) {
+      console.error('Error clearing all data:', error);
+      Alert.alert('Error', 'Failed to clear data. Please try again.');
+    }
+  };
+
   const getSleepSessionByDate = (date: string): (SleepSession | WhoopSleepRecord) | null => {
     const session = sleepSessions.find((candidate) => {
       if (isSleepSessionRecord(candidate)) {
@@ -260,10 +305,22 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const getDreamByDate = (date: string): Dream | null => {
     const dreamForDate = dreams.find((dream) => {
       const session = sleepSessions.find((s) => s.id === dream.sleepSessionId);
-      if (!session || !isSleepSessionRecord(session)) {
+      if (!session) {
         return false;
       }
-      return session.date === date;
+
+      // Handle SleepSession (demo data)
+      if (isSleepSessionRecord(session)) {
+        return session.date === date;
+      }
+
+      // Handle WhoopSleepRecord (extract date from start timestamp)
+      try {
+        return new Date(session.start).toISOString().split('T')[0] === date;
+      } catch (error) {
+        console.warn('Unable to parse WHOOP sleep date', error);
+        return false;
+      }
     });
     return dreamForDate || null;
   };
@@ -349,6 +406,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         fetchSleepData,
         generateDream,
         deleteDream: handleDeleteDream,
+        clearAllData: handleClearAllData,
         isGeneratingDream,
         getSleepSessionByDate,
         getDreamByDate,

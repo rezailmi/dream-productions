@@ -1,4 +1,6 @@
 import { WhoopSleepData, DreamNarrative, VeoVideoRequest, VeoVideoResponse, GenerateDreamResponse, SleepVideoContext, SleepQuality } from '../types';
+import { buildVeoPromptFromWhoop } from '../promptTemplates/veoPromptTemplate';
+import { inferCategoryFromMetrics } from '../utils/categoryInference';
 import { GroqService } from './groqService';
 import { GoogleVeoService } from './googleVeoService';
 import { FalVeoService } from './falVeoService';
@@ -26,7 +28,7 @@ export class DreamGenerationService {
       console.log('✅ Using Google Veo for video generation');
     } else {
       this.videoService = new FalVeoService();
-      console.log('✅ Using Fal.ai for video generation');
+      console.log('✅ Using Fal.ai Sora 2 for video generation');
     }
   }
 
@@ -60,18 +62,18 @@ export class DreamGenerationService {
         console.log('\n┌─────────────────────────────────────┐');
         console.log('│  STEP 2: VIDEO GENERATION           │');
         console.log('└─────────────────────────────────────┘');
-        console.log(`🎥 Using ${this.videoProvider === 'google' ? 'Google Veo' : 'Fal.ai Veo3'} to generate video...`);
+        console.log(`🎥 Using ${this.videoProvider === 'google' ? 'Google Veo' : 'Fal.ai Sora 2'} to generate video...`);
 
         const videoPrompt = this.enhancePromptForVeo(narrative, sleepData);
         console.log('Prompt preview:', videoPrompt.substring(0, 100) + '...');
-        console.log('Settings: 4s duration, 720p, 16:9 aspect ratio, with AI audio');
+        console.log('Settings: 4s duration, 720p, 9:16 aspect ratio, with AI audio');
 
         const videoRequest: VeoVideoRequest = {
           prompt: videoPrompt,
-          aspectRatio: '16:9',
+          aspectRatio: '9:16',
           durationSeconds: 4,
-          resolution: '720p', // Reduced from 1080p for mobile optimization (smaller file size)
-          generateAudio: true, // Re-enabled AI-generated audio
+          resolution: '720p',
+          generateAudio: true,
         };
 
         const videoStartTime = Date.now();
@@ -175,23 +177,10 @@ export class DreamGenerationService {
    * Enhance prompt for Veo video generation using full narrative context
    */
   private enhancePromptForVeo(narrative: DreamNarrative, sleepData: WhoopSleepData): string {
-    // Create a rich prompt from the narrative
-    const sleepMetrics = this.buildSleepMetricsContext(sleepData);
-    const metricsPreview = this.describeSleepMetrics(sleepMetrics);
-    const basePrompt = `${narrative.title}. ${narrative.narrative}. Mood: ${narrative.mood}. ${narrative.emotionalContext}. ${metricsPreview}`;
-
-    // Add cinematographic elements to make videos more visually appealing
-    const enhancements = [
-      'Cinematic quality',
-      'dreamlike atmosphere',
-      'soft ethereal lighting',
-      'smooth camera movement',
-      'high detail',
-      'surreal elements',
-      '4K quality',
-    ];
-
-    return `${basePrompt}. ${enhancements.join(', ')}.`;
+    // Use the strict 6-scene Veo template driven by WHOOP metrics.
+    // Category is inferred if not provided elsewhere.
+    const category = inferCategoryFromMetrics(sleepData);
+    return buildVeoPromptFromWhoop(sleepData, { category });
   }
 
   private buildSleepMetricsContext(sleepData: WhoopSleepData): SleepVideoContext {

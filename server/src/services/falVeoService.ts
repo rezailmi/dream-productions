@@ -30,36 +30,33 @@ export class FalVeoService {
   }
 
   /**
-   * Generate video using Fal.ai Veo3 API
+   * Generate video using Fal.ai Sora 2 API
    * Uses the subscribe method which waits for completion
    */
   async generateVideo(request: VeoVideoRequest): Promise<VeoVideoResponse> {
     try {
       console.log('   🔧 Fal.ai Configuration:');
-      console.log('      Model: fal-ai/veo3');
-      console.log('      Duration:', `${request.durationSeconds}s`);
-      console.log('      Resolution:', request.resolution);
-      console.log('      Aspect Ratio:', request.aspectRatio);
-      console.log('      Enhance Prompt: Yes');
+      console.log('      Model: fal-ai/sora-2/text-to-video');
+      console.log('      Duration: Default (likely 4-8s)');
+      console.log('      Resolution: 720p');
+      console.log('      Aspect Ratio: 9:16 (vertical)');
+      console.log('      Audio Generation: Built-in (Sora 2 default)');
 
-      console.log('\n   📡 Sending request to Fal.ai...');
+      console.log('\n   📡 Sending request to Fal.ai Sora 2...');
 
       // Use fal.subscribe for synchronous waiting (recommended)
-      const result = await fal.subscribe('fal-ai/veo3', {
+      const result = await fal.subscribe('fal-ai/sora-2/text-to-video', {
         input: {
           prompt: request.prompt,
-          aspect_ratio: request.aspectRatio,
-          duration: `${request.durationSeconds}s` as '4s' | '6s' | '8s',
-          resolution: request.resolution,
-          generate_audio: request.generateAudio,
-          enhance_prompt: true, // Let Fal.ai enhance the prompt for better results
+          aspect_ratio: "9:16", // Valid values: "auto", "9:16", "16:9"
+          resolution: "720p", // Standard Sora 2 resolution
         },
         logs: true,
         onQueueUpdate: (update) => {
           if (update.status === 'IN_QUEUE') {
             console.log('   ⏸️  In queue, waiting to start...');
           } else if (update.status === 'IN_PROGRESS') {
-            console.log('   🎬 Video generation in progress...');
+            console.log('   🎬 Sora 2 video generation in progress...');
             if (update.logs) {
               update.logs.forEach((log: any) => {
                 console.log('      Log:', log.message || log);
@@ -69,7 +66,7 @@ export class FalVeoService {
         },
       });
 
-      console.log('   ✅ Fal.ai video generation complete!');
+      console.log('   ✅ Fal.ai Sora 2 video generation complete!');
 
       // DEBUG: Log the complete raw response from Fal.ai
       console.log('\n   🔍 DEBUG: Raw Fal.ai result object:');
@@ -87,7 +84,7 @@ export class FalVeoService {
         videoUrl,
       };
     } catch (error: any) {
-      console.log('   ❌ Fal.ai Error:');
+      console.log('   ❌ Fal.ai Sora 2 Error:');
       console.log('      Message:', error.message);
       if (error.body) {
         console.log('      Details:', JSON.stringify(error.body, null, 2));
@@ -95,7 +92,7 @@ export class FalVeoService {
       return {
         operationId: `error_${Date.now()}`,
         status: 'failed',
-        error: error.message || 'Failed to generate video with Fal.ai',
+        error: error.message || 'Failed to generate video with Fal.ai Sora 2',
       };
     }
   }
@@ -106,18 +103,15 @@ export class FalVeoService {
    */
   async generateVideoAsync(request: VeoVideoRequest): Promise<VeoVideoResponse> {
     try {
-      const { request_id } = await fal.queue.submit('fal-ai/veo3', {
+      const { request_id } = await fal.queue.submit('fal-ai/sora-2/text-to-video', {
         input: {
           prompt: request.prompt,
-          aspect_ratio: request.aspectRatio,
-          duration: `${request.durationSeconds}s` as '4s' | '6s' | '8s',
-          resolution: request.resolution,
-          generate_audio: request.generateAudio,
-          enhance_prompt: true,
+          aspect_ratio: "9:16", // Valid values: "auto", "9:16", "16:9"
+          resolution: "720p", // Standard Sora 2 resolution
         },
       });
 
-      console.log('Fal.ai async video generation started:', request_id);
+      console.log('Fal.ai Sora 2 async video generation started:', request_id);
 
       return {
         operationId: request_id,
@@ -138,13 +132,13 @@ export class FalVeoService {
    */
   async checkVideoStatus(operationId: string): Promise<VeoVideoResponse> {
     try {
-      const status = await fal.queue.status('fal-ai/veo3', {
+      const status = await fal.queue.status('fal-ai/sora-2/text-to-video', {
         requestId: operationId,
         logs: true,
       });
 
       if (status.status === 'COMPLETED') {
-        const result = await fal.queue.result('fal-ai/veo3', {
+        const result = await fal.queue.result('fal-ai/sora-2/text-to-video', {
           requestId: operationId,
         });
 
@@ -182,10 +176,10 @@ export class FalVeoService {
    */
   async waitForVideo(operationId: string, maxWaitTime: number = 120000): Promise<VeoVideoResponse> {
     try {
-      console.log('Waiting for video completion:', operationId);
+      console.log('Waiting for Sora 2 video completion:', operationId);
 
       // Use Fal.ai queue result method which polls automatically
-      const result = await fal.queue.result('fal-ai/veo3', {
+      const result = await fal.queue.result('fal-ai/sora-2/text-to-video', {
         requestId: operationId,
       });
 

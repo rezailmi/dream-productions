@@ -68,31 +68,31 @@ const gray = {
 // Semantic color tokens
 export const Colors = {
   // Background colors
-  background: violet.violet1,
+  background: '#000000', // Pure black to match vignette effect
   backgroundSubtle: violet.violet2,
   backgroundHover: violet.violet3,
-  
+
   // Card/Surface colors
   surface: 'rgba(255, 255, 255, 0.05)',
   // Subtle surface used for chips and soft containers
   surfaceSubtle: 'rgba(255, 255, 255, 0.04)',
   surfaceHover: 'rgba(255, 255, 255, 0.08)',
-  surfaceActive: 'rgba(158, 140, 252, 0.15)',
-  
-  // Primary brand colors
-  primary: violet.violet9,
-  primaryHover: violet.violet10,
-  primaryText: violet.violet11,
-  
+  surfaceActive: 'rgba(2, 224, 135, 0.15)', // Accent color with transparency
+
+  // Primary brand colors (using new accent color)
+  primary: '#02E087', // New accent color
+  primaryHover: '#03FFA0', // Lighter variant for hover states
+  primaryText: '#02E087', // Text color using accent
+
   // Secondary colors
   secondary: blue.blue9,
   secondaryHover: blue.blue10,
   secondaryText: blue.blue11,
-  
+
   // Status colors
-  success: green.green9,
-  successSubtle: green.green4,
-  successText: green.green11,
+  success: '#02E087', // Use accent color for success states
+  successSubtle: 'rgba(2, 224, 135, 0.1)',
+  successText: '#02E087',
   
   inactive: gray.gray8,
   inactiveSubtle: gray.gray3,

@@ -3,7 +3,7 @@ import { FlatList, Dimensions, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useHealthData } from '../../contexts/HealthDataContext';
 import { DayCard } from '../../components/DayCard';
-import { generateDateArray, formatDateLabel } from '../../utils/dateHelpers';
+import { generateDateArray, formatDateLabel, getToday } from '../../utils/dateHelpers';
 import Colors from '../../constants/Colors';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -24,8 +24,12 @@ export default function HomeScreen() {
     isGeneratingDream,
   } = useHealthData();
 
+  // Get today's date to use as dependency for date array
+  const today = getToday();
+
   // Generate array of dates (today going backwards 30 days)
-  const dateArray = useMemo(() => generateDateArray(30), []);
+  // Recalculates when 'today' changes (i.e., when the day changes)
+  const dateArray = useMemo(() => generateDateArray(30), [today]);
 
   const handleGenerate = async (date: string) => {
     const sleepSession = getSleepSessionByDate(date);
@@ -48,7 +52,7 @@ export default function HomeScreen() {
         onGenerate={() => handleGenerate(date)}
         onDeleteDream={deleteDream}
         isWhoopConnected={dataSource === 'whoop'}
-        isGenerating={dream?.status === 'generating'}
+        isGenerating={isGeneratingDream || dream?.status === 'generating'}
       />
     );
   };

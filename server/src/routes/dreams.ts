@@ -7,7 +7,7 @@ const dreamService = new DreamGenerationService();
 // Generate dream from sleep data
 router.post('/generate', async (req: Request, res: Response) => {
   try {
-    const { sleepData } = req.body;
+    const { sleepData, category, profile } = req.body || {};
 
     console.log('\n========================================');
     console.log('🎬 NEW DREAM GENERATION REQUEST');
@@ -23,7 +23,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Sleep data is required' });
     }
 
-    // Generate dream narrative and video
+    // Generate dream narrative and video (category/profile currently used in Veo template only)
     const dream = await dreamService.generateDream(sleepData);
 
     console.log('\n========================================');

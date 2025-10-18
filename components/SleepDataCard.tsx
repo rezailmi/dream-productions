@@ -296,12 +296,22 @@ export function SleepDataCard({
         </ScrollView>
         {showGenerateButton && (
           <TouchableOpacity
-            style={[styles.generateButton, styles.generateButtonDisabled]}
-            disabled
-            activeOpacity={1}
+            style={[styles.generateButton, isGenerating && styles.generateButtonDisabled]}
+            onPress={onGenerate}
+            disabled={isGenerating}
+            activeOpacity={isGenerating ? 1 : 0.7}
           >
-            <Ionicons name="sparkles" size={18} color={Colors.textMuted} />
-            <Text style={styles.generateButtonTextMuted}>Dream generation coming soon for WHOOP</Text>
+            {isGenerating ? (
+              <>
+                <ActivityIndicator size="small" color={Colors.text} />
+                <Text style={styles.generateButtonText}>Generating...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="sparkles" size={18} color={Colors.text} />
+                <Text style={styles.generateButtonText}>Generate Dream</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </BlurView>
