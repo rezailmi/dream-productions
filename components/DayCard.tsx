@@ -237,12 +237,16 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT,
     backgroundColor: Colors.background,
   },
+  safeAreaHeader: {
+    backgroundColor: Colors.background,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -278,8 +282,9 @@ const styles = StyleSheet.create({
   },
   contentPage: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 20,
+    paddingTop: 20,
     backgroundColor: Colors.background,
   },
   dreamPage: {

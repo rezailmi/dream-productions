@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import { SettingsCard } from '../../components/SettingsCard';
@@ -106,7 +105,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar style="light" />
       <ScrollView
         style={styles.scrollView}
@@ -154,7 +153,7 @@ export default function ProfileScreen() {
           <Text style={styles.footerSubtext}>AI-powered dream reconstruction</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -168,7 +167,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 40,
   },
   header: {

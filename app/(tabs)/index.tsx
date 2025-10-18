@@ -66,6 +66,7 @@ export default function HomeScreen() {
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         initialScrollIndex={0}
+        contentContainerStyle={{ paddingTop: 0 }}
         getItemLayout={(_, index) => ({
           length: SCREEN_HEIGHT,
           offset: SCREEN_HEIGHT * index,
