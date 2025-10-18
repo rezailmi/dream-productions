@@ -3,7 +3,7 @@
  */
 
 /**
- * Generate an array of ISO date strings going backwards from today
+ * Generate an array of ISO date strings going backwards from today (local timezone)
  * @param days Number of days to generate (default: 30)
  * @returns Array of date strings in format 'YYYY-MM-DD'
  */
@@ -14,7 +14,10 @@ export const generateDateArray = (days: number = 30): string[] => {
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
-    dates.push(date.toISOString().split('T')[0]);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    dates.push(`${year}-${month}-${day}`);
   }
 
   return dates;
@@ -87,11 +90,15 @@ export const getDaysAgo = (daysAgo: number): string => {
 };
 
 /**
- * Get today's date in ISO format
+ * Get today's date in ISO format (local timezone)
  * @returns ISO date string 'YYYY-MM-DD'
  */
 export const getToday = (): string => {
-  return new Date().toISOString().split('T')[0];
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /**

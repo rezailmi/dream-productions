@@ -10,9 +10,10 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface DreamVideoViewProps {
   dream: Dream;
+  autoPlay?: boolean;
 }
 
-export function DreamVideoView({ dream }: DreamVideoViewProps) {
+export function DreamVideoView({ dream, autoPlay = false }: DreamVideoViewProps) {
   if (!dream.videoUrl) {
     return (
       <View style={styles.container}>
@@ -34,6 +35,7 @@ export function DreamVideoView({ dream }: DreamVideoViewProps) {
           videoUrl={dream.videoUrl}
           width={SCREEN_WIDTH - 40}
           height={SCREEN_HEIGHT * 0.6}
+          autoPlay={autoPlay}
         />
         {/* Vignette Overlay */}
         <View style={styles.vignetteContainer} pointerEvents="none">

@@ -22,6 +22,7 @@ interface DayCardProps {
   onDeleteDream?: (dreamId: string) => void;
   isWhoopConnected: boolean;
   isGenerating?: boolean;
+  isVisible?: boolean;
 }
 
 export function DayCard({
@@ -33,6 +34,7 @@ export function DayCard({
   onDeleteDream,
   isWhoopConnected,
   isGenerating = false,
+  isVisible = false,
 }: DayCardProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const carouselRef = useRef<ScrollView>(null);
@@ -59,7 +61,7 @@ export function DayCard({
             <Ionicons name="videocam-outline" size={80} color={Colors.textMuted} />
             <Text style={styles.emptyTitle}>No Dream Video</Text>
             <Text style={styles.emptySubtext}>
-              {dream?.status === 'generating' 
+              {dream?.status === 'generating'
                 ? 'Your dream is being generated...'
                 : dream?.status === 'failed'
                 ? 'Dream generation failed'
@@ -72,7 +74,7 @@ export function DayCard({
 
     return (
       <View style={[styles.dreamPage, { width: SCREEN_WIDTH }]}>
-        <DreamVideoView dream={dream} />
+        <DreamVideoView dream={dream} autoPlay={isVisible && currentPage === 0} />
       </View>
     );
   };

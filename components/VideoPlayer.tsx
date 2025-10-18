@@ -17,15 +17,17 @@ interface VideoPlayerProps {
   videoUrl?: string;
   width?: DimensionValue;
   height?: DimensionValue;
+  autoPlay?: boolean;
 }
 
-export function VideoPlayer({ videoUrl, width = '100%', height = 250 }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, width = '100%', height = 250, autoPlay = false }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [retryCount, setRetryCount] = useState(0);
   const [isBuffered, setIsBuffered] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerDimensions = useMemo<ViewStyle>(() => {
     const style: ViewStyle = {};
@@ -130,13 +132,41 @@ export function VideoPlayer({ videoUrl, width = '100%', height = 250 }: VideoPla
     try {
       if (isPlaying) {
         player.pause();
+        setUserPaused(true); // User manually paused
       } else {
         player.play();
+        setUserPaused(false); // User manually played
       }
     } catch (playbackError) {
       console.error('Error toggling video playback:', playbackError);
     }
   };
+
+  // Reset userPaused when scrolling away
+  useEffect(() => {
+    if (!autoPlay) {
+      setUserPaused(false);
+    }
+  }, [autoPlay]);
+
+  // Handle autoplay based on prop
+  useEffect(() => {
+    if (!player || !isBuffered) {
+      return;
+    }
+
+    try {
+      if (autoPlay && !isPlaying && !error && !userPaused) {
+        // Autoplay when in view (only if user hasn't manually paused)
+        player.play();
+      } else if (!autoPlay && isPlaying) {
+        // Pause when scrolled away
+        player.pause();
+      }
+    } catch (playbackError) {
+      console.error('Error controlling video playback:', playbackError);
+    }
+  }, [autoPlay, player, isBuffered, isPlaying, error, userPaused]);
 
   useEffect(() => {
     if (!player) {

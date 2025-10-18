@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
+import { CollectionView } from '../../components/CollectionView';
 import { SettingsCard } from '../../components/SettingsCard';
 import { useHealthData } from '../../contexts/HealthDataContext';
 import Colors from '../../constants/Colors';
@@ -18,6 +20,7 @@ export const unstable_settings = {
 
 export default function ProfileScreen() {
   const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken, clearAllData, dreams } = useHealthData();
+  const [selectedTab, setSelectedTab] = useState(0); // 0 = Collection, 1 = My Data
 
   useEffect(() => {
     // Handle OAuth callback via deep linking
@@ -131,65 +134,108 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My profile</Text>
+        
+        <View style={styles.segmentedControl}>
+          {/* Button 1: Collection */}
+          <TouchableOpacity
+            onPress={() => setSelectedTab(0)}
+            style={[
+              styles.segmentButton,
+              selectedTab === 0 && styles.segmentButtonActive,
+            ]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="bulb"
+              size={20}
+              color={selectedTab === 0 ? Colors.background : Colors.text}
+            />
+          </TouchableOpacity>
+
+          {/* Separator */}
+          <View style={styles.separator} />
+
+          {/* Button 2: My Data */}
+          <TouchableOpacity
+            onPress={() => setSelectedTab(1)}
+            style={[
+              styles.segmentButton,
+              selectedTab === 1 && styles.segmentButtonActive,
+            ]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="settings"
+              size={20}
+              color={selectedTab === 1 ? Colors.background : Colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerSubtitle}>Manage your data sources</Text>
-        </View>
+        {selectedTab === 0 ? (
+          <CollectionView dreams={dreams} />
+        ) : (
+          <View style={styles.dataView}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Choose Your Data Source</Text>
+              
+              <SettingsCard
+                title="Connect Apple Health"
+                description="Access sleep data from your Apple Watch"
+                icon="fitness"
+                status={dataSource === 'apple-health' ? 'active' : 'inactive'}
+                onPress={handleAppleHealthPress}
+                isActive={dataSource === 'apple-health'}
+              />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Choose Your Data Source</Text>
-          
-          <SettingsCard
-            title="Connect Apple Health"
-            description="Access sleep data from your Apple Watch"
-            icon="fitness"
-            status={dataSource === 'apple-health' ? 'active' : 'inactive'}
-            onPress={handleAppleHealthPress}
-            isActive={dataSource === 'apple-health'}
-          />
+              <SettingsCard
+                title={whoopAccessToken ? "WHOOP Connected" : "Connect Whoop"}
+                description={whoopAccessToken ? "Tap to disconnect or sync data" : "Sync your Whoop sleep and recovery data"}
+                icon="body"
+                status={whoopAccessToken ? 'active' : 'inactive'}
+                onPress={handleWhoopPress}
+                isActive={whoopAccessToken !== null}
+              />
 
-          <SettingsCard
-            title={whoopAccessToken ? "WHOOP Connected" : "Connect Whoop"}
-            description={whoopAccessToken ? "Tap to disconnect or sync data" : "Sync your Whoop sleep and recovery data"}
-            icon="body"
-            status={whoopAccessToken ? 'active' : 'inactive'}
-            onPress={handleWhoopPress}
-            isActive={whoopAccessToken !== null}
-          />
+              <SettingsCard
+                title="Use Demo Data"
+                description="Try the app with sample sleep data"
+                icon="sparkles"
+                status={dataSource === 'demo' ? 'active' : 'inactive'}
+                onPress={handleDemoPress}
+                isActive={dataSource === 'demo'}
+              />
+            </View>
 
-          <SettingsCard
-            title="Use Demo Data"
-            description="Try the app with sample sleep data"
-            icon="sparkles"
-            status={dataSource === 'demo' ? 'active' : 'inactive'}
-            onPress={handleDemoPress}
-            isActive={dataSource === 'demo'}
-          />
-        </View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Data Management</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Management</Text>
+              <SettingsCard
+                title="Clear All Data"
+                description={`Delete ${dreams.length} dream${dreams.length !== 1 ? 's' : ''} and reset to demo mode`}
+                icon="trash"
+                status="inactive"
+                onPress={handleClearAllData}
+                isActive={false}
+                isDanger={true}
+              />
+            </View>
 
-          <SettingsCard
-            title="Clear All Data"
-            description={`Delete ${dreams.length} dream${dreams.length !== 1 ? 's' : ''} and reset to demo mode`}
-            icon="trash"
-            status="inactive"
-            onPress={handleClearAllData}
-            isActive={false}
-            isDanger={true}
-          />
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.versionText}>Dream Machine v1.0.0</Text>
-          <Text style={styles.footerSubtext}>AI-powered dream reconstruction</Text>
-        </View>
+            <View style={styles.footer}>
+              <Text style={styles.versionText}>Dream Machine v1.0.0</Text>
+              <Text style={styles.footerSubtext}>AI-powered dream reconstruction</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -200,26 +246,59 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 70,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '510',
+    color: Colors.text,
+    letterSpacing: -0.25,
+    lineHeight: 20,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(118, 118, 128, 0.12)',
+    borderRadius: 100,
+    height: 36,
+    width: 120,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  segmentButton: {
+    flex: 1,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 1000,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  segmentButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  separator: {
+    width: 1,
+    height: '100%',
+    backgroundColor: '#8E8E93',
+    opacity: 0.3,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingTop: 20,
     paddingBottom: 40,
   },
-  header: {
-    marginBottom: 32,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 6,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: Colors.textSubtle,
+  dataView: {
+    flex: 1,
   },
   section: {
     marginBottom: 40,
@@ -248,4 +327,3 @@ const styles = StyleSheet.create({
     color: Colors.textSubtle,
   },
 });
-
