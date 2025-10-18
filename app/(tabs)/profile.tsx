@@ -1,20 +1,85 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import { SettingsCard } from '../../components/SettingsCard';
 import { useHealthData } from '../../contexts/HealthDataContext';
 import Colors from '../../constants/Colors';
 
+// Ensure WebBrowser cleanup
+WebBrowser.maybeCompleteAuthSession();
+
+const API_BASE_URL = __DEV__ ? 'http://localhost:3000' : 'https://your-production-api.com';
+
 export default function ProfileScreen() {
-  const { dataSource, setDataSource } = useHealthData();
+  const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken } = useHealthData();
+
+  useEffect(() => {
+    // Handle OAuth callback via deep linking
+    const handleUrl = ({ url }: { url: string }) => {
+      const params = new URL(url).searchParams;
+      const accessToken = params.get('accessToken');
+      const error = params.get('message');
+
+      if (error) {
+        Alert.alert('Authentication Error', error);
+      } else if (accessToken) {
+        setWhoopAccessToken(accessToken);
+        setDataSource('whoop');
+        Alert.alert('Success', 'Connected to WHOOP!');
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleUrl);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [setWhoopAccessToken, setDataSource]);
 
   const handleAppleHealthPress = () => {
     Alert.alert('Coming Soon', 'Apple Health integration will be available in a future update.');
   };
 
-  const handleWhoopPress = () => {
-    Alert.alert('Coming Soon', 'Whoop integration will be available in a future update.');
+  const handleWhoopPress = async () => {
+    if (whoopAccessToken) {
+      // Already connected, offer to disconnect
+      Alert.alert(
+        'WHOOP Connected',
+        'You are already connected to WHOOP. Would you like to disconnect?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disconnect',
+            style: 'destructive',
+            onPress: () => {
+              setWhoopAccessToken(null);
+              if (dataSource === 'whoop') {
+                setDataSource('demo');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Start OAuth flow
+    try {
+      const authUrl = `${API_BASE_URL}/auth/whoop`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'exp://localhost:8081/--/auth');
+
+      if (result.type === 'success') {
+        // Tokens will be handled by deep link listener
+        console.log('OAuth flow completed');
+      } else {
+        Alert.alert('Authentication Cancelled', 'WHOOP authentication was cancelled.');
+      }
+    } catch (error: any) {
+      console.error('OAuth error:', error);
+      Alert.alert('Error', 'Failed to start WHOOP authentication.');
+    }
   };
 
   const handleDemoPress = () => {
@@ -47,12 +112,12 @@ export default function ProfileScreen() {
           />
 
           <SettingsCard
-            title="Connect Whoop"
-            description="Sync your Whoop sleep and recovery data"
+            title={whoopAccessToken ? "WHOOP Connected" : "Connect Whoop"}
+            description={whoopAccessToken ? "Tap to disconnect or sync data" : "Sync your Whoop sleep and recovery data"}
             icon="body"
-            status={dataSource === 'whoop' ? 'active' : 'inactive'}
+            status={whoopAccessToken ? 'active' : 'inactive'}
             onPress={handleWhoopPress}
-            isActive={dataSource === 'whoop'}
+            isActive={whoopAccessToken !== null}
           />
 
           <SettingsCard

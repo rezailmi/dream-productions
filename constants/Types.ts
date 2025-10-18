@@ -51,7 +51,33 @@ export interface HeartRateSpike {
 export interface HealthDataContextType {
   dataSource: DataSource;
   sleepSessions: SleepSession[];
+  dreams: Dream[];
+  whoopAccessToken: string | null;
   setDataSource: (source: DataSource) => void;
+  setWhoopAccessToken: (token: string | null) => void;
   fetchSleepData: () => Promise<void>;
+  generateDream: (sleepSessionId: string) => Promise<void>;
+  isGeneratingDream: boolean;
+}
+
+export interface Dream {
+  id: string;
+  sleepSessionId: string;
+  title: string;
+  narrative: string;
+  mood: string;
+  emotionalContext: string;
+  scenes: DreamScene[];
+  videoUrl?: string;
+  status: 'generating' | 'complete' | 'failed';
+  generatedAt: string;
+  error?: string;
+}
+
+export interface DreamScene {
+  sceneNumber: number;
+  description: string;
+  prompt: string;
+  duration: number;
 }
 
