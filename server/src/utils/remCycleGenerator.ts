@@ -20,15 +20,55 @@ export function generateREMCyclesFromAggregate(
   disturbanceCount: number,
   sleepStartTime: string
 ): REMCycle[] {
-  if (cycleCount === 0) {
+  // Validate cycle count
+  if (cycleCount <= 0) {
     return [];
   }
 
-  const remCycles: REMCycle[] = [];
+  // Cap unrealistic cycle counts (normal sleep has 4-6 cycles, max ~8-10)
+  if (cycleCount > 12) {
+    console.warn(`Unusually high cycle count: ${cycleCount}, capping at 12`);
+    cycleCount = 12;
+  }
+
+  // Validate REM time
+  if (totalRemMilli < 0) {
+    console.warn('Negative REM time provided, defaulting to 0');
+    totalRemMilli = 0;
+  }
+
   const totalRemMinutes = totalRemMilli / 60000;
 
+  // If no REM sleep, return empty array
+  if (totalRemMinutes === 0) {
+    console.warn('No REM sleep time provided');
+    return [];
+  }
+
+  // Validate disturbance count
+  if (disturbanceCount < 0) {
+    console.warn('Negative disturbance count provided, defaulting to 0');
+    disturbanceCount = 0;
+  }
+
+  // Validate and parse sleepStartTime format (HH:MM or HH:MM:SS)
+  const timeMatch = sleepStartTime?.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!timeMatch) {
+    console.error('Invalid sleep start time format:', sleepStartTime);
+    throw new Error('Sleep start time must be in HH:MM or HH:MM:SS format');
+  }
+
+  const hours = parseInt(timeMatch[1], 10);
+  const minutes = parseInt(timeMatch[2], 10);
+
+  // Validate time values are in valid range
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    throw new Error(`Invalid time values: ${hours}:${minutes}`);
+  }
+
+  const remCycles: REMCycle[] = [];
+
   // Calculate start time in minutes from midnight for easier calculation
-  const [hours, minutes] = sleepStartTime.split(':').map(Number);
   let currentMinutesFromMidnight = hours * 60 + minutes;
 
   // Realistic REM distribution weights (REM periods get longer as night progresses)

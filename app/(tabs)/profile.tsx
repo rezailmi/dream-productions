@@ -12,6 +12,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 const API_BASE_URL = __DEV__ ? 'http://localhost:3000' : 'https://your-production-api.com';
 
+// Configure screen options for Expo Router
+export const unstable_settings = {
+  headerShown: false,
+};
+
 export default function ProfileScreen() {
   const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken } = useHealthData();
 

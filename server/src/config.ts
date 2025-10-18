@@ -29,9 +29,6 @@ if (missing.length > 0) {
 }
 
 console.log('✅ Environment variables loaded successfully');
-console.log(`   - WHOOP_CLIENT_ID: ${process.env.WHOOP_CLIENT_ID?.substring(0, 8)}...`);
-console.log(`   - GROQ_API_KEY: ${process.env.GROQ_API_KEY?.substring(0, 8)}...`);
-console.log(`   - FAL_API_KEY: ${process.env.FAL_API_KEY?.substring(0, 8)}...`);
 console.log('');
 
 export {};  // Make this a module

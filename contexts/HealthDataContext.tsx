@@ -81,6 +81,17 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error fetching sleep data:', error);
+
+      // Handle token expiration (401/403 errors)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        await handleSetWhoopAccessToken(null);
+        Alert.alert(
+          'WHOOP Connection Expired',
+          'Your WHOOP connection has expired. Please reconnect in the Profile tab.'
+        );
+        return;
+      }
+
       Alert.alert('Error', error.message || 'Failed to fetch sleep data');
     }
   };
@@ -194,6 +205,79 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const getSleepSessionByDate = (date: string): SleepSession | null => {
+    return sleepSessions.find((session) => session.date === date) || null;
+  };
+
+  const getDreamByDate = (date: string): Dream | null => {
+    const dreamForDate = dreams.find((dream) => {
+      const session = sleepSessions.find((s) => s.id === dream.sleepSessionId);
+      return session?.date === date;
+    });
+    return dreamForDate || null;
+  };
+
+  const fetchWhoopSleepData = async (startDate: string, endDate: string) => {
+    if (!whoopAccessToken) {
+      console.log('No WHOOP access token available');
+      return;
+    }
+
+    try {
+      console.log(`Fetching WHOOP sleep data from ${startDate} to ${endDate}`);
+      const response = await apiClient.fetchWhoopSleep(whoopAccessToken, {
+        start: startDate,
+        end: endDate,
+        limit: 30,
+      });
+
+      console.log(`Successfully fetched ${response.records?.length || 0} WHOOP sleep sessions`);
+
+      // Backend now returns mapped SleepSession[] format
+      if (response.records && response.records.length > 0) {
+        setSleepSessions(response.records);
+        console.log('Sleep sessions updated with WHOOP data');
+      } else {
+        console.log('No WHOOP sleep data available for date range, keeping demo data');
+      }
+    } catch (error: any) {
+      // Handle token expiration (401/403 errors)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('WHOOP token expired or invalid, clearing token');
+        await handleSetWhoopAccessToken(null);
+        Alert.alert(
+          'WHOOP Connection Expired',
+          'Your WHOOP connection has expired. Please reconnect in the Profile tab.'
+        );
+        return;
+      }
+
+      // Handle 404 (no data) - this is normal, just log
+      if (error.response?.status === 404) {
+        console.log('No WHOOP sleep data available for date range, keeping demo data');
+        return;
+      }
+
+      // Other errors - log but don't show alert
+      console.error('Error fetching WHOOP sleep data:', error);
+    }
+  };
+
+  // Fetch WHOOP data when token becomes available
+  useEffect(() => {
+    if (whoopAccessToken) {
+      setDataSource('whoop');
+
+      // Fetch last 30 days of sleep data
+      const today = new Date().toISOString().split('T')[0];
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+
+      fetchWhoopSleepData(startDate, today);
+    }
+  }, [whoopAccessToken]);
+
   return (
     <HealthDataContext.Provider
       value={{
@@ -207,6 +291,9 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         generateDream,
         deleteDream: handleDeleteDream,
         isGeneratingDream,
+        getSleepSessionByDate,
+        getDreamByDate,
+        fetchWhoopSleepData,
       }}
     >
       {children}

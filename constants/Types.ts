@@ -59,6 +59,17 @@ export interface HealthDataContextType {
   generateDream: (sleepSessionId: string) => Promise<void>;
   deleteDream: (dreamId: string) => Promise<void>;
   isGeneratingDream: boolean;
+  getSleepSessionByDate: (date: string) => SleepSession | null;
+  getDreamByDate: (date: string) => Dream | null;
+  fetchWhoopSleepData: (startDate: string, endDate: string) => Promise<void>;
+}
+
+export interface DayCardData {
+  date: string;
+  dateLabel: string;
+  sleepSession: SleepSession | null;
+  dream: Dream | null;
+  isToday: boolean;
 }
 
 export interface Dream {

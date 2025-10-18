@@ -32,7 +32,25 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
       }
     );
 
-    res.json(sleepData);
+    // Map WHOOP data to our SleepSession format (optimized single-pass)
+    const mappedSessions = sleepData.records.reduce((acc: any[], record: any) => {
+      // Skip unscored sessions
+      if (!record.score) return acc;
+
+      try {
+        const mapped = whoopService.mapWhoopToSleepSession(record);
+        acc.push(mapped);
+      } catch (error) {
+        console.log(`Skipping unscored sleep session: ${record.id}`);
+      }
+
+      return acc;
+    }, [])
+
+    res.json({
+      records: mappedSessions,
+      next_token: sleepData.next_token,
+    });
   } catch (error: any) {
     console.error('Error fetching sleep data:', error);
     res.status(error.response?.status || 500).json({
