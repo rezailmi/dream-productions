@@ -74,14 +74,14 @@ Complete redesign of profile screen with dual-tab interface.
 - Collection view shows oneiromancy cards
 - My Data view shows existing settings/data sources
 - Updated header styling to match Figma design
-- Uses Ionicons for tab icons (bulb and settings)
+- Uses Ionicons for tab icons (star and settings)
 
 **Segmented Control Design:**
 - Matches homepage tab component exactly
 - Pill-shaped container with separator
 - Mint green active state (`Colors.primary`)
 - Dark icon when active, light icon when inactive
-- 2 tabs: Collection (bulb icon) and My Data (settings icon)
+- 2 tabs: Collection (star icon) and My Data (settings icon)
 
 **Header Layout:**
 ```tsx
@@ -89,7 +89,7 @@ Complete redesign of profile screen with dual-tab interface.
   <Text style={styles.headerTitle}>My profile</Text>
   <View style={styles.segmentedControl}>
     <TouchableOpacity>
-      <Ionicons name="bulb" ... />
+      <Ionicons name="star" ... />
     </TouchableOpacity>
     <View style={styles.separator} />
     <TouchableOpacity>
@@ -171,7 +171,7 @@ All images located in `/assets/oneiromancy/`:
 - `wealth.png`
 
 ### Segmented Control Icons
-- Collection icon: Ionicons "bulb"
+- Collection icon: Ionicons "star"
 - My data icon: Ionicons "settings"
 - Same design pattern as homepage tab component
 
@@ -226,7 +226,7 @@ All images located in `/assets/oneiromancy/`:
 - [x] Header layout matches Figma design
 - [x] Safe area properly handled
 - [x] Dark mode colors work correctly
-- [x] Icons use Ionicons (bulb and settings)
+- [x] Icons use Ionicons (star and settings)
 
 ## Known Issues
 

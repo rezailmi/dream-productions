@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.anonymous.dreammachineserver"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.dreammachineserver"
+  }
+}
