@@ -35,6 +35,11 @@ WHOOP_CLIENT_ID=your_client_id
 WHOOP_CLIENT_SECRET=your_client_secret
 WHOOP_CALLBACK_URL=http://localhost:3000/auth/whoop/callback
 
+# WHOOP API Configuration (Optional)
+# Default: https://api.whoop.com/developer/v2
+# Only set if you need to use a different API version
+# WHOOP_API_BASE_URL=https://api.whoop.com/developer/v2
+
 # Groq API
 GROQ_API_KEY=your_groq_api_key
 
@@ -43,6 +48,7 @@ FAL_API_KEY=your_fal_api_key
 
 # Server
 PORT=3000
+NODE_ENV=development
 SESSION_SECRET=generate_a_random_secret
 FRONTEND_URL=http://localhost:8081
 ```
@@ -115,11 +121,27 @@ npm start
 
 ## Troubleshooting
 
+### WHOOP API returning 404 errors
+
+**October 2025 Update**: WHOOP deprecated v1 API on October 1, 2025. This server now uses v2 API by default.
+
+- Base URL: `https://api.whoop.com/developer/v2` (updated from `https://api.prod.whoop.com/developer/v2`)
+- OAuth URLs: `https://api.whoop.com/oauth/oauth2/*` (updated from `https://api.prod.whoop.com/oauth/oauth2/*`)
+- Endpoints: `/sleep`, `/recovery/{id}` (updated from `/activity/sleep`, `/cycle/{id}/recovery`)
+- IDs: Now use UUIDs instead of integers
+
+If you still get 404 errors:
+1. Verify your WHOOP access token is valid (check OAuth flow)
+2. Ensure you have recent sleep data in your WHOOP account (last 30 days)
+3. Check server logs for detailed error messages
+4. Try reconnecting your WHOOP account in the app
+
 ### WHOOP OAuth not working
 
 - Ensure redirect URI matches exactly in WHOOP developer console
 - Check that server is running on port 3000
 - Verify client ID and secret are correct
+- Make sure you're using the correct OAuth URLs (see above)
 
 ### Groq API errors
 

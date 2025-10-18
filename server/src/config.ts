@@ -29,6 +29,7 @@ if (missing.length > 0) {
 }
 
 console.log('✅ Environment variables loaded successfully');
+console.log('📌 WHOOP API Base URL:', process.env.WHOOP_API_BASE_URL || 'https://api.prod.whoop.com/developer/v1 (default)');
 console.log('');
 
 export {};  // Make this a module

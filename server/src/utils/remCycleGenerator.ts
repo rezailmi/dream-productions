@@ -14,7 +14,7 @@ import { REMCycle } from '../types';
  * - Mark likely primary dream cycles (typically cycle 2 or 3)
  * - Generate plausible start times based on typical 90-minute cycle patterns
  */
-export function generateREMCyclesFromAggregate(
+export function generateRemCyclesFromAggregate(
   totalRemMilli: number,
   cycleCount: number,
   disturbanceCount: number,

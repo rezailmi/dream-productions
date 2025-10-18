@@ -19,6 +19,50 @@ export interface SleepSession {
   heartRateData: HeartRateData;
 }
 
+export interface WhoopStageSummary {
+  total_in_bed_time_milli?: number;
+  total_awake_time_milli?: number;
+  total_no_data_time_milli?: number;
+  total_light_sleep_time_milli?: number;
+  total_slow_wave_sleep_time_milli?: number;
+  total_rem_sleep_time_milli?: number;
+  sleep_cycle_count?: number;
+  disturbance_count?: number;
+}
+
+export interface WhoopSleepNeeded {
+  baseline_milli?: number;
+  need_from_sleep_debt_milli?: number;
+  need_from_recent_strain_milli?: number;
+  need_from_recent_nap_milli?: number;
+}
+
+export interface WhoopSleepScore {
+  stage_summary?: WhoopStageSummary;
+  sleep_needed?: WhoopSleepNeeded;
+  respiratory_rate?: number;
+  sleep_performance_percentage?: number;
+  sleep_consistency_percentage?: number;
+  sleep_efficiency_percentage?: number;
+  [key: string]: unknown;
+}
+
+export interface WhoopSleepRecord {
+  id: string;
+  cycle_id?: number;
+  v1_id?: number;
+  user_id?: number;
+  created_at?: string;
+  updated_at?: string;
+  start: string;
+  end: string;
+  timezone_offset?: string;
+  nap?: boolean;
+  score_state?: 'SCORED' | 'PENDING_SCORE' | 'UNSCORABLE';
+  score?: WhoopSleepScore;
+  [key: string]: unknown;
+}
+
 export interface REMCycle {
   cycleNumber: number;
   startTime: string;
@@ -50,7 +94,7 @@ export interface HeartRateSpike {
 
 export interface HealthDataContextType {
   dataSource: DataSource;
-  sleepSessions: SleepSession[];
+  sleepSessions: (SleepSession | WhoopSleepRecord)[];
   dreams: Dream[];
   whoopAccessToken: string | null;
   setDataSource: (source: DataSource) => void;
@@ -59,7 +103,7 @@ export interface HealthDataContextType {
   generateDream: (sleepSessionId: string) => Promise<void>;
   deleteDream: (dreamId: string) => Promise<void>;
   isGeneratingDream: boolean;
-  getSleepSessionByDate: (date: string) => SleepSession | null;
+  getSleepSessionByDate: (date: string) => SleepSession | WhoopSleepRecord | null;
   getDreamByDate: (date: string) => Dream | null;
   fetchWhoopSleepData: (startDate: string, endDate: string) => Promise<void>;
 }
@@ -67,7 +111,7 @@ export interface HealthDataContextType {
 export interface DayCardData {
   date: string;
   dateLabel: string;
-  sleepSession: SleepSession | null;
+  sleepSession: SleepSession | WhoopSleepRecord | null;
   dream: Dream | null;
   isToday: boolean;
 }

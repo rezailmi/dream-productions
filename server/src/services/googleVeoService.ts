@@ -20,6 +20,22 @@ interface GoogleVeoOperation {
 export class GoogleVeoService {
   private apiKey: string;
   private baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+  private normalizeVideoUri(uri?: string): string | undefined {
+    if (!uri) {
+      return undefined;
+    }
+
+    if (uri.startsWith('gs://')) {
+      const path = uri.replace('gs://', '');
+      const [bucket, ...objectParts] = path.split('/');
+      const objectPath = objectParts.join('/');
+      const encodedObject = encodeURIComponent(objectPath);
+      return `https://storage.googleapis.com/download/storage/v1/b/${bucket}/o/${encodedObject}?alt=media`;
+    }
+
+    return uri;
+  }
+
 
   constructor() {
     this.apiKey = process.env.GOOGLE_VEO_API_KEY || '';
@@ -118,7 +134,9 @@ export class GoogleVeoService {
       // Operation is complete
       const videoUri = operation.response?.generated_videos?.[0]?.video?.uri;
 
-      if (!videoUri) {
+      const normalizedUri = this.normalizeVideoUri(videoUri);
+
+      if (!normalizedUri) {
         return {
           operationId,
           status: 'failed',
@@ -128,7 +146,7 @@ export class GoogleVeoService {
 
       return {
         operationId,
-        videoUrl: videoUri,
+        videoUrl: normalizedUri,
         status: 'complete',
       };
     } catch (error: any) {

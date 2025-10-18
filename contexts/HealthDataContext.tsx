@@ -1,15 +1,26 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Alert } from 'react-native';
-import { DataSource, SleepSession, Dream, HealthDataContextType } from '../constants/Types';
-import { DEMO_SLEEP_DATA } from '../services/demoData';
+import { DataSource, SleepSession, Dream, HealthDataContextType, WhoopSleepRecord } from '../constants/Types';
+import { DEMO_SLEEP_DATA, DEMO_WHOOP_RECORDS } from '../services/demoData';
+import { mapWhoopRecordToSleepSession } from '../utils/whoopSleepMapper';
 import apiClient from '../services/apiClient';
 import dreamStorage from '../services/dreamStorage';
 
 const HealthDataContext = createContext<HealthDataContextType | undefined>(undefined);
 
+const isSleepSessionRecord = (
+  session: SleepSession | WhoopSleepRecord | null | undefined,
+): session is SleepSession => {
+  return !!session && 'remCycles' in session;
+};
+
 export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [dataSource, setDataSource] = useState<DataSource>('demo');
-  const [sleepSessions, setSleepSessions] = useState<SleepSession[]>(DEMO_SLEEP_DATA);
+  const [sleepSessions, setSleepSessions] = useState<(SleepSession | WhoopSleepRecord)[]>([
+    ...DEMO_SLEEP_DATA,
+    ...DEMO_WHOOP_RECORDS,
+  ]);
+  const [demoWhoopSessions, setDemoWhoopSessions] = useState<SleepSession[]>(DEMO_SLEEP_DATA);
   const [dreams, setDreams] = useState<Dream[]>([]);
   const [whoopAccessToken, setWhoopAccessToken] = useState<string | null>(null);
   const [isGeneratingDream, setIsGeneratingDream] = useState(false);
@@ -61,7 +72,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const fetchSleepData = async () => {
     try {
       if (dataSource === 'demo') {
-        setSleepSessions(DEMO_SLEEP_DATA);
+        setSleepSessions([...demoWhoopSessions, ...DEMO_WHOOP_RECORDS]);
       } else if (dataSource === 'apple-health') {
         // TODO: Implement Apple Health integration
         Alert.alert('Coming Soon', 'Apple Health integration will be available in a future update.');
@@ -71,13 +82,15 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        // Fetch sleep data from WHOOP API
-        const response = await apiClient.fetchWhoopSleep(whoopAccessToken, { limit: 10 });
+        const response = await apiClient.fetchWhoopSleep(whoopAccessToken, { limit: 25 });
 
-        // Note: WHOOP data would need to be mapped to SleepSession format
-        // This would be done in the backend whoopService.mapWhoopToSleepSession
-        // For now, we'll show a success message
-        Alert.alert('Success', `Fetched ${response.records?.length || 0} sleep sessions from WHOOP`);
+        if (response.records && response.records.length > 0) {
+          setSleepSessions(response.records as WhoopSleepRecord[]);
+        } else {
+          setSleepSessions([]);
+        }
+
+        Alert.alert('Success', `Fetched ${response.records?.length || 0} WHOOP sleep sessions`);
       }
     } catch (error: any) {
       console.error('Error fetching sleep data:', error);
@@ -92,7 +105,16 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      Alert.alert('Error', error.message || 'Failed to fetch sleep data');
+      // Handle 404 errors with helpful message
+      if (error.response?.status === 404) {
+        const message = error.response?.data?.message || 'No sleep data found in your WHOOP account. Make sure you have been wearing your device during sleep.';
+        Alert.alert('No Sleep Data', message);
+        return;
+      }
+
+      // Generic error handling
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch sleep data from WHOOP. Please check your connection and try again.';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -105,9 +127,9 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
 
       // Find the sleep session
       const sleepSession = sleepSessions.find((s) => s.id === sleepSessionId);
-      if (!sleepSession) {
+      if (!sleepSession || !isSleepSessionRecord(sleepSession)) {
         setIsGeneratingDream(false);
-        Alert.alert('Error', 'Sleep session not found');
+        Alert.alert('Error', 'Sleep session not found or not supported for dream generation');
         return;
       }
 
@@ -205,14 +227,43 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getSleepSessionByDate = (date: string): SleepSession | null => {
-    return sleepSessions.find((session) => session.date === date) || null;
+  const getSleepSessionByDate = (date: string): (SleepSession | WhoopSleepRecord) | null => {
+    const session = sleepSessions.find((candidate) => {
+      if (isSleepSessionRecord(candidate)) {
+        return candidate.date === date;
+      }
+
+      try {
+        return new Date(candidate.start).toISOString().split('T')[0] === date;
+      } catch (error) {
+        console.warn('Unable to parse WHOOP sleep date', error);
+        return false;
+      }
+    });
+
+    if (!session) {
+      return null;
+    }
+
+    if (isSleepSessionRecord(session)) {
+      return session;
+    }
+
+    try {
+      return mapWhoopRecordToSleepSession(session as WhoopSleepRecord);
+    } catch (error) {
+      console.warn('Unable to map WHOOP record to SleepSession', error);
+      return session;
+    }
   };
 
   const getDreamByDate = (date: string): Dream | null => {
     const dreamForDate = dreams.find((dream) => {
       const session = sleepSessions.find((s) => s.id === dream.sleepSessionId);
-      return session?.date === date;
+      if (!session || !isSleepSessionRecord(session)) {
+        return false;
+      }
+      return session.date === date;
     });
     return dreamForDate || null;
   };
@@ -228,17 +279,17 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       const response = await apiClient.fetchWhoopSleep(whoopAccessToken, {
         start: startDate,
         end: endDate,
-        limit: 30,
+        limit: 25,
       });
 
       console.log(`Successfully fetched ${response.records?.length || 0} WHOOP sleep sessions`);
 
-      // Backend now returns mapped SleepSession[] format
       if (response.records && response.records.length > 0) {
-        setSleepSessions(response.records);
+        setSleepSessions(response.records as WhoopSleepRecord[]);
         console.log('Sleep sessions updated with WHOOP data');
       } else {
-        console.log('No WHOOP sleep data available for date range, keeping demo data');
+        console.log('No WHOOP sleep data available for date range');
+        setSleepSessions([]);
       }
     } catch (error: any) {
       // Handle token expiration (401/403 errors)
@@ -257,9 +308,9 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         console.log('No WHOOP sleep data available for date range');
         Alert.alert(
           'No WHOOP Data Found',
-          'No sleep data was found in your WHOOP account for the last 30 days. Make sure you\'ve been wearing your WHOOP device during sleep.\n\nUsing demo data for now.'
+          'No sleep data was found in your WHOOP account for the last 30 days. Make sure you\'ve been wearing your WHOOP device during sleep.'
         );
-        setSleepSessions(DEMO_SLEEP_DATA); // Fallback to demo data
+        setSleepSessions([]);
         return;
       }
 

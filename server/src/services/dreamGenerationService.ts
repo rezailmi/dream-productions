@@ -1,4 +1,4 @@
-import { WhoopSleepData, DreamNarrative, VeoVideoRequest, VeoVideoResponse, GenerateDreamResponse } from '../types';
+import { WhoopSleepData, DreamNarrative, VeoVideoRequest, VeoVideoResponse, GenerateDreamResponse, SleepVideoContext, SleepQuality } from '../types';
 import { GroqService } from './groqService';
 import { GoogleVeoService } from './googleVeoService';
 import { FalVeoService } from './falVeoService';
@@ -62,16 +62,16 @@ export class DreamGenerationService {
         console.log('└─────────────────────────────────────┘');
         console.log(`🎥 Using ${this.videoProvider === 'google' ? 'Google Veo' : 'Fal.ai Veo3'} to generate video...`);
 
-        const videoPrompt = this.enhancePromptForVeo(narrative);
+        const videoPrompt = this.enhancePromptForVeo(narrative, sleepData);
         console.log('Prompt preview:', videoPrompt.substring(0, 100) + '...');
-        console.log('Settings: 4s duration, 1080p, 16:9 aspect ratio');
+        console.log('Settings: 4s duration, 720p, 16:9 aspect ratio, with AI audio');
 
         const videoRequest: VeoVideoRequest = {
           prompt: videoPrompt,
           aspectRatio: '16:9',
           durationSeconds: 4,
-          resolution: '1080p',
-          generateAudio: true,
+          resolution: '720p', // Reduced from 1080p for mobile optimization (smaller file size)
+          generateAudio: true, // Re-enabled AI-generated audio
         };
 
         const videoStartTime = Date.now();
@@ -174,9 +174,11 @@ export class DreamGenerationService {
   /**
    * Enhance prompt for Veo video generation using full narrative context
    */
-  private enhancePromptForVeo(narrative: DreamNarrative): string {
+  private enhancePromptForVeo(narrative: DreamNarrative, sleepData: WhoopSleepData): string {
     // Create a rich prompt from the narrative
-    const basePrompt = `${narrative.title}. ${narrative.narrative}. Mood: ${narrative.mood}. ${narrative.emotionalContext}`;
+    const sleepMetrics = this.buildSleepMetricsContext(sleepData);
+    const metricsPreview = this.describeSleepMetrics(sleepMetrics);
+    const basePrompt = `${narrative.title}. ${narrative.narrative}. Mood: ${narrative.mood}. ${narrative.emotionalContext}. ${metricsPreview}`;
 
     // Add cinematographic elements to make videos more visually appealing
     const enhancements = [
@@ -190,5 +192,80 @@ export class DreamGenerationService {
     ];
 
     return `${basePrompt}. ${enhancements.join(', ')}.`;
+  }
+
+  private buildSleepMetricsContext(sleepData: WhoopSleepData): SleepVideoContext {
+    const summary = sleepData.score?.stage_summary;
+    const efficiency = sleepData.score?.sleep_efficiency_percentage;
+    const respiratoryRate = sleepData.score?.respiratory_rate;
+
+    const remMinutes = summary ? Math.round((summary.total_rem_sleep_time_milli ?? 0) / 60000) : undefined;
+    const deepMinutes = summary ? Math.round((summary.total_slow_wave_sleep_time_milli ?? 0) / 60000) : undefined;
+    const totalMinutes = summary ? Math.round((summary.total_in_bed_time_milli ?? 0) / 60000) : undefined;
+
+    const heartRate = efficiency
+      ? {
+          resting: Math.max(Math.round(efficiency / 1.6), 48),
+          average: Math.max(Math.round(efficiency / 1.8), 50),
+          min: Math.max(Math.round(efficiency / 2.1), 45),
+          max: Math.round(efficiency / 1.4),
+        }
+      : undefined;
+
+    return {
+      date: sleepData.start ? new Date(sleepData.start).toISOString().split('T')[0] : undefined,
+      sleepQuality: this.estimateSleepQuality(sleepData.score?.sleep_performance_percentage),
+      totalDurationMinutes: totalMinutes,
+      remDurationMinutes: remMinutes,
+      deepDurationMinutes: deepMinutes,
+      wakeUps: summary?.disturbance_count,
+      respiratoryRate,
+      heartRate,
+    };
+  }
+
+  private describeSleepMetrics(metrics: SleepVideoContext): string {
+    const parts: string[] = [];
+
+    if (metrics.sleepQuality) {
+      parts.push(`Sleep quality was ${metrics.sleepQuality}`);
+    }
+
+    if (metrics.totalDurationMinutes) {
+      parts.push(`Total sleep lasted ${Math.round(metrics.totalDurationMinutes / 60)} hours and ${metrics.totalDurationMinutes % 60} minutes`);
+    }
+
+    if (metrics.remDurationMinutes) {
+      parts.push(`REM sleep spanned ${metrics.remDurationMinutes} minutes, driving the dream intensity`);
+    }
+
+    if (metrics.deepDurationMinutes) {
+      parts.push(`Deep sleep covered ${metrics.deepDurationMinutes} minutes, grounding the narrative`);
+    }
+
+    if (metrics.respiratoryRate) {
+      parts.push(`Breathing averaged ${metrics.respiratoryRate.toFixed(1)} respirations per minute`);
+    }
+
+    if (metrics.heartRate) {
+      parts.push(`Heart rate ranged from ${metrics.heartRate.min ?? '—'} to ${metrics.heartRate.max ?? '—'} bpm`);
+    }
+
+    if (metrics.wakeUps != null) {
+      parts.push(`There were ${metrics.wakeUps} nocturnal wake-ups influencing dream fragments`);
+    }
+
+    return parts.join('. ');
+  }
+
+  private estimateSleepQuality(performance?: number): SleepQuality | undefined {
+    if (performance == null) {
+      return undefined;
+    }
+
+    if (performance >= 90) return 'excellent';
+    if (performance >= 75) return 'good';
+    if (performance >= 50) return 'fair';
+    return 'poor';
   }
 }

@@ -13,6 +13,22 @@ export class FalVeoService {
     }
   }
 
+  private normalizeVideoUri(uri?: string): string | undefined {
+    if (!uri) {
+      return undefined;
+    }
+
+    if (uri.startsWith('gs://')) {
+      const path = uri.replace('gs://', '');
+      const [bucket, ...objectParts] = path.split('/');
+      const objectPath = objectParts.join('/');
+      const encodedObject = encodeURIComponent(objectPath);
+      return `https://storage.googleapis.com/download/storage/v1/b/${bucket}/o/${encodedObject}?alt=media`;
+    }
+
+    return uri;
+  }
+
   /**
    * Generate video using Fal.ai Veo3 API
    * Uses the subscribe method which waits for completion
@@ -59,7 +75,8 @@ export class FalVeoService {
       console.log('\n   🔍 DEBUG: Raw Fal.ai result object:');
       console.log(JSON.stringify(result, null, 2));
 
-      const videoUrl = (result as any).data?.video?.url;
+      const rawVideoUrl = (result as any).data?.video?.url;
+      const videoUrl = this.normalizeVideoUri(rawVideoUrl);
       console.log('\n   🔍 DEBUG: Extracted videoUrl from result.data.video.url:', videoUrl);
       console.log('   🔍 DEBUG: result.data.video =', (result as any).data?.video);
       console.log('   📹 Video URL:', videoUrl);
@@ -134,7 +151,7 @@ export class FalVeoService {
         return {
           operationId,
           status: 'complete',
-          videoUrl: (result as any).data?.video?.url,
+          videoUrl: this.normalizeVideoUri((result as any).data?.video?.url),
         };
       }
 
@@ -179,7 +196,7 @@ export class FalVeoService {
       return {
         operationId,
         status: 'complete',
-        videoUrl: (result as any).data?.video?.url,
+        videoUrl: this.normalizeVideoUri((result as any).data?.video?.url),
       };
     } catch (error: any) {
       console.error('Fal.ai wait error:', error);

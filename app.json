@@ -16,7 +16,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dreammachine.app",
-      "deploymentTarget": "26.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -39,7 +38,20 @@
     },
     "plugins": [
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Dream Machine to access your microphone for audio features."
+        }
+      ]
     ]
   }
 }

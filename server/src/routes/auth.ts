@@ -15,6 +15,7 @@ passport.deserializeUser((user: any, done) => {
 
 // Configure WHOOP OAuth2 Strategy
 // Note: Environment variables are loaded in config.ts before this runs
+// OAuth endpoints still use api.prod.whoop.com domain
 passport.use('whoop', new OAuth2Strategy(
   {
     authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',

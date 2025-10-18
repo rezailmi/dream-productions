@@ -74,6 +74,8 @@ export const Colors = {
   
   // Card/Surface colors
   surface: 'rgba(255, 255, 255, 0.05)',
+  // Subtle surface used for chips and soft containers
+  surfaceSubtle: 'rgba(255, 255, 255, 0.04)',
   surfaceHover: 'rgba(255, 255, 255, 0.08)',
   surfaceActive: 'rgba(158, 140, 252, 0.15)',
   

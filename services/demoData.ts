@@ -1,557 +1,258 @@
-import { SleepSession } from '../constants/Types';
+import {
+  SleepSession,
+  WhoopSleepRecord,
+  WhoopSleepScore,
+  WhoopStageSummary,
+} from '../constants/Types';
+import { generateRemCyclesFromAggregate } from '../utils/remCycleGenerator';
 
-// Demo sleep data for testing and demonstration
-export const DEMO_SLEEP_DATA: SleepSession[] = [
-  {
-    id: '0',
-    date: '2025-10-18',
-    startTime: '23:30:00',
-    endTime: '07:45:00',
-    totalDurationMinutes: 495,
-    sleepQuality: 'excellent',
-    wakeUps: 1,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '00:25:00',
-        durationMinutes: 22,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 2,
-        startTime: '02:10:00',
-        durationMinutes: 26,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 3,
-        startTime: '04:00:00',
-        durationMinutes: 28,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '05:40:00',
-        durationMinutes: 32,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '23:30:00', durationMinutes: 10 },
-      { type: 'Core', startTime: '23:40:00', durationMinutes: 40 },
-      { type: 'Deep', startTime: '00:20:00', durationMinutes: 58 },
-      { type: 'REM', startTime: '01:18:00', durationMinutes: 22 },
-      { type: 'Core', startTime: '01:40:00', durationMinutes: 45 },
-      { type: 'Deep', startTime: '02:25:00', durationMinutes: 42 },
-      { type: 'REM', startTime: '03:07:00', durationMinutes: 26 },
-      { type: 'Core', startTime: '03:33:00', durationMinutes: 42 },
-      { type: 'REM', startTime: '04:15:00', durationMinutes: 28 },
-      { type: 'Core', startTime: '04:43:00', durationMinutes: 38 },
-      { type: 'REM', startTime: '05:21:00', durationMinutes: 32 },
-      { type: 'Core', startTime: '05:53:00', durationMinutes: 50 },
-      { type: 'Awake', startTime: '06:43:00', durationMinutes: 22 },
-    ],
+type DemoWhoopRecord = WhoopSleepRecord & { score: WhoopSleepScore };
+
+type DemoSleepBundle = {
+  raw: DemoWhoopRecord;
+  mapped: SleepSession;
+};
+
+const minutesFromMilliseconds = (value: number): number => Math.round(value / 60000);
+
+const buildStages = (summary: WhoopStageSummary, sleepStart: string) => {
+  const stages = [] as SleepSession['stages'];
+
+  const startParts = sleepStart.split(':');
+  const baseMinutes = Number.parseInt(startParts[0], 10) * 60 + Number.parseInt(startParts[1], 10);
+
+  const pushStage = (type: SleepSession['stages'][number]['type'], durationMinutes: number, offsetMinutes: number) => {
+    const total = baseMinutes + offsetMinutes;
+    const hours = Math.floor(total / 60) % 24;
+    const minutes = total % 60;
+    stages.push({
+      type,
+      startTime: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`,
+      durationMinutes,
+    });
+  };
+
+  let offset = 0;
+
+  const pushIfPositive = (
+    type: SleepSession['stages'][number]['type'],
+    duration: number,
+  ) => {
+    if (duration > 0) {
+      pushStage(type, duration, offset);
+      offset += duration;
+    }
+  };
+
+  pushIfPositive('Awake', minutesFromMilliseconds(summary.total_awake_time_milli ?? 0));
+  pushIfPositive('Core', minutesFromMilliseconds(summary.total_light_sleep_time_milli ?? 0));
+  pushIfPositive('Deep', minutesFromMilliseconds(summary.total_slow_wave_sleep_time_milli ?? 0));
+  pushIfPositive('REM', minutesFromMilliseconds(summary.total_rem_sleep_time_milli ?? 0));
+
+  return stages;
+};
+
+const inferQuality = (percentage?: number) => {
+  if (!percentage) return 'fair';
+  if (percentage >= 90) return 'excellent';
+  if (percentage >= 75) return 'good';
+  if (percentage >= 50) return 'fair';
+  return 'poor';
+};
+
+const convertRecord = (record: DemoWhoopRecord): SleepSession => {
+  const { score } = record;
+  const summary = score.stage_summary ?? {};
+
+  const start = new Date(record.start);
+  const end = new Date(record.end);
+  const date = start.toISOString().split('T')[0];
+  const startTime = start.toISOString().split('T')[1].substring(0, 8);
+  const endTime = end.toISOString().split('T')[1].substring(0, 8);
+
+  const remCycles = generateRemCyclesFromAggregate(
+    summary.total_rem_sleep_time_milli ?? 0,
+    summary.sleep_cycle_count ?? 0,
+    summary.disturbance_count ?? 0,
+    startTime,
+  );
+
+  const stages = buildStages(summary, startTime);
+
+  const sleepQuality = inferQuality(score.sleep_performance_percentage);
+
+  const resting = score.sleep_efficiency_percentage
+    ? Math.max(Math.round(score.sleep_efficiency_percentage / 1.5), 48)
+    : 58;
+
+  return {
+    id: record.id,
+    date,
+    startTime,
+    endTime,
+    totalDurationMinutes: minutesFromMilliseconds(summary.total_in_bed_time_milli ?? (end.getTime() - start.getTime())),
+    sleepQuality,
+    wakeUps: summary.disturbance_count ?? 0,
+    remCycles,
+    stages,
     heartRateData: {
-      restingBPM: 54,
-      averageBPM: 58,
-      minBPM: 50,
-      maxBPM: 73,
-      spikes: [
-        {
-          time: '02:25:00',
-          bpm: 70,
-          percentageAboveBaseline: 30,
-          context: 'Vivid dream sequence',
-        },
-        {
-          time: '04:28:00',
-          bpm: 73,
-          percentageAboveBaseline: 35,
-          context: 'Intense REM dream',
-        },
-      ],
+      restingBPM: resting,
+      averageBPM: Math.max(resting - 4, 50),
+      minBPM: Math.max(resting - 8, 45),
+      maxBPM: resting + 12,
+      spikes: [],
+    },
+  };
+};
+
+const DEMO_WHOOP_RAW: DemoWhoopRecord[] = [
+  {
+    id: 'whoop-demo-0',
+    cycle_id: 123456,
+    v1_id: 789012,
+    user_id: 24680,
+    created_at: '2025-10-19T08:00:00.000Z',
+    updated_at: '2025-10-19T08:00:00.000Z',
+    start: '2025-10-18T23:30:00.000Z',
+    end: '2025-10-19T07:45:00.000Z',
+    timezone_offset: '-04:00',
+    nap: false,
+    score_state: 'SCORED',
+    score: {
+      stage_summary: {
+        total_in_bed_time_milli: 495 * 60000,
+        total_awake_time_milli: 26 * 60000,
+        total_no_data_time_milli: 0,
+        total_light_sleep_time_milli: 210 * 60000,
+        total_slow_wave_sleep_time_milli: 130 * 60000,
+        total_rem_sleep_time_milli: 105 * 60000,
+        sleep_cycle_count: 4,
+        disturbance_count: 1,
+      },
+      sleep_needed: {
+        baseline_milli: 8 * 3600000,
+        need_from_sleep_debt_milli: 15 * 60000,
+        need_from_recent_strain_milli: 25 * 60000,
+        need_from_recent_nap_milli: 0,
+      },
+      respiratory_rate: 14.6,
+      sleep_performance_percentage: 92,
+      sleep_consistency_percentage: 88,
+      sleep_efficiency_percentage: 94,
     },
   },
   {
-    id: '1',
-    date: '2025-10-17',
-    startTime: '23:47:00',
-    endTime: '07:23:00',
-    totalDurationMinutes: 456,
-    sleepQuality: 'good',
-    wakeUps: 2,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '00:45:00',
-        durationMinutes: 18,
-        isInterrupted: false,
-        isPrimaryDream: false,
+    id: 'whoop-demo-1',
+    cycle_id: 123457,
+    v1_id: 789013,
+    user_id: 24680,
+    created_at: '2025-10-18T08:00:00.000Z',
+    updated_at: '2025-10-18T08:00:00.000Z',
+    start: '2025-10-17T23:45:00.000Z',
+    end: '2025-10-18T07:10:00.000Z',
+    timezone_offset: '-04:00',
+    nap: false,
+    score_state: 'SCORED',
+    score: {
+      stage_summary: {
+        total_in_bed_time_milli: 445 * 60000,
+        total_awake_time_milli: 35 * 60000,
+        total_no_data_time_milli: 0,
+        total_light_sleep_time_milli: 185 * 60000,
+        total_slow_wave_sleep_time_milli: 118 * 60000,
+        total_rem_sleep_time_milli: 90 * 60000,
+        sleep_cycle_count: 4,
+        disturbance_count: 2,
       },
-      {
-        cycleNumber: 2,
-        startTime: '02:30:00',
-        durationMinutes: 22,
-        isInterrupted: false,
-        isPrimaryDream: true,
+      sleep_needed: {
+        baseline_milli: 7.8 * 3600000,
+        need_from_sleep_debt_milli: 45 * 60000,
+        need_from_recent_strain_milli: 30 * 60000,
+        need_from_recent_nap_milli: 0,
       },
-      {
-        cycleNumber: 3,
-        startTime: '04:15:00',
-        durationMinutes: 25,
-        isInterrupted: true,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '05:50:00',
-        durationMinutes: 28,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '23:47:00', durationMinutes: 12 },
-      { type: 'Core', startTime: '23:59:00', durationMinutes: 35 },
-      { type: 'Deep', startTime: '00:34:00', durationMinutes: 52 },
-      { type: 'REM', startTime: '01:26:00', durationMinutes: 18 },
-      { type: 'Core', startTime: '01:44:00', durationMinutes: 45 },
-      { type: 'Deep', startTime: '02:29:00', durationMinutes: 38 },
-      { type: 'REM', startTime: '03:07:00', durationMinutes: 22 },
-      { type: 'Core', startTime: '03:29:00', durationMinutes: 40 },
-      { type: 'Awake', startTime: '04:09:00', durationMinutes: 5 },
-      { type: 'Core', startTime: '04:14:00', durationMinutes: 35 },
-      { type: 'REM', startTime: '04:49:00', durationMinutes: 25 },
-      { type: 'Core', startTime: '05:14:00', durationMinutes: 30 },
-      { type: 'REM', startTime: '05:44:00', durationMinutes: 28 },
-      { type: 'Core', startTime: '06:12:00', durationMinutes: 45 },
-      { type: 'Awake', startTime: '06:57:00', durationMinutes: 26 },
-    ],
-    heartRateData: {
-      restingBPM: 58,
-      averageBPM: 62,
-      minBPM: 54,
-      maxBPM: 78,
-      spikes: [
-        {
-          time: '02:45:00',
-          bpm: 75,
-          percentageAboveBaseline: 29,
-          context: 'During intense REM dream sequence',
-        },
-        {
-          time: '04:12:00',
-          bpm: 78,
-          percentageAboveBaseline: 34,
-          context: 'Brief awakening after nightmare',
-        },
-        {
-          time: '05:58:00',
-          bpm: 72,
-          percentageAboveBaseline: 24,
-          context: 'Vivid dream with emotional content',
-        },
-      ],
+      respiratory_rate: 14.9,
+      sleep_performance_percentage: 83,
+      sleep_consistency_percentage: 79,
+      sleep_efficiency_percentage: 88,
     },
   },
   {
-    id: '2',
-    date: '2025-10-16',
-    startTime: '23:15:00',
-    endTime: '06:45:00',
-    totalDurationMinutes: 450,
-    sleepQuality: 'excellent',
-    wakeUps: 1,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '00:30:00',
-        durationMinutes: 20,
-        isInterrupted: false,
-        isPrimaryDream: false,
+    id: 'whoop-demo-2',
+    cycle_id: 123458,
+    v1_id: 789014,
+    user_id: 24680,
+    created_at: '2025-10-17T08:00:00.000Z',
+    updated_at: '2025-10-17T08:00:00.000Z',
+    start: '2025-10-16T23:20:00.000Z',
+    end: '2025-10-17T06:50:00.000Z',
+    timezone_offset: '-04:00',
+    nap: false,
+    score_state: 'SCORED',
+    score: {
+      stage_summary: {
+        total_in_bed_time_milli: 450 * 60000,
+        total_awake_time_milli: 28 * 60000,
+        total_no_data_time_milli: 0,
+        total_light_sleep_time_milli: 200 * 60000,
+        total_slow_wave_sleep_time_milli: 120 * 60000,
+        total_rem_sleep_time_milli: 100 * 60000,
+        sleep_cycle_count: 4,
+        disturbance_count: 1,
       },
-      {
-        cycleNumber: 2,
-        startTime: '02:15:00',
-        durationMinutes: 24,
-        isInterrupted: false,
-        isPrimaryDream: true,
+      sleep_needed: {
+        baseline_milli: 7.6 * 3600000,
+        need_from_sleep_debt_milli: 30 * 60000,
+        need_from_recent_strain_milli: 20 * 60000,
+        need_from_recent_nap_milli: 0,
       },
-      {
-        cycleNumber: 3,
-        startTime: '04:00:00',
-        durationMinutes: 26,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '05:35:00',
-        durationMinutes: 30,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '23:15:00', durationMinutes: 8 },
-      { type: 'Core', startTime: '23:23:00', durationMinutes: 42 },
-      { type: 'Deep', startTime: '00:05:00', durationMinutes: 55 },
-      { type: 'REM', startTime: '01:00:00', durationMinutes: 20 },
-      { type: 'Core', startTime: '01:20:00', durationMinutes: 48 },
-      { type: 'Deep', startTime: '02:08:00', durationMinutes: 45 },
-      { type: 'REM', startTime: '02:53:00', durationMinutes: 24 },
-      { type: 'Core', startTime: '03:17:00', durationMinutes: 38 },
-      { type: 'Deep', startTime: '03:55:00', durationMinutes: 32 },
-      { type: 'REM', startTime: '04:27:00', durationMinutes: 26 },
-      { type: 'Core', startTime: '04:53:00', durationMinutes: 35 },
-      { type: 'REM', startTime: '05:28:00', durationMinutes: 30 },
-      { type: 'Core', startTime: '05:58:00', durationMinutes: 40 },
-      { type: 'Awake', startTime: '06:38:00', durationMinutes: 7 },
-    ],
-    heartRateData: {
-      restingBPM: 56,
-      averageBPM: 59,
-      minBPM: 52,
-      maxBPM: 71,
-      spikes: [
-        {
-          time: '02:28:00',
-          bpm: 68,
-          percentageAboveBaseline: 21,
-          context: 'Moderate dream activity',
-        },
-        {
-          time: '04:42:00',
-          bpm: 71,
-          percentageAboveBaseline: 27,
-          context: 'Intense vivid dream scenario',
-        },
-      ],
+      respiratory_rate: 14.3,
+      sleep_performance_percentage: 87,
+      sleep_consistency_percentage: 84,
+      sleep_efficiency_percentage: 91,
     },
   },
   {
-    id: '3',
-    date: '2025-10-15',
-    startTime: '00:10:00',
-    endTime: '08:05:00',
-    totalDurationMinutes: 475,
-    sleepQuality: 'fair',
-    wakeUps: 4,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '01:05:00',
-        durationMinutes: 15,
-        isInterrupted: true,
-        isPrimaryDream: false,
+    id: 'whoop-demo-3',
+    cycle_id: 123459,
+    v1_id: 789015,
+    user_id: 24680,
+    created_at: '2025-10-16T08:00:00.000Z',
+    updated_at: '2025-10-16T08:00:00.000Z',
+    start: '2025-10-15T23:50:00.000Z',
+    end: '2025-10-16T07:30:00.000Z',
+    timezone_offset: '-04:00',
+    nap: false,
+    score_state: 'SCORED',
+    score: {
+      stage_summary: {
+        total_in_bed_time_milli: 460 * 60000,
+        total_awake_time_milli: 45 * 60000,
+        total_no_data_time_milli: 0,
+        total_light_sleep_time_milli: 205 * 60000,
+        total_slow_wave_sleep_time_milli: 110 * 60000,
+        total_rem_sleep_time_milli: 95 * 60000,
+        sleep_cycle_count: 4,
+        disturbance_count: 3,
       },
-      {
-        cycleNumber: 2,
-        startTime: '02:50:00',
-        durationMinutes: 20,
-        isInterrupted: false,
-        isPrimaryDream: true,
+      sleep_needed: {
+        baseline_milli: 7.9 * 3600000,
+        need_from_sleep_debt_milli: 55 * 60000,
+        need_from_recent_strain_milli: 18 * 60000,
+        need_from_recent_nap_milli: 0,
       },
-      {
-        cycleNumber: 3,
-        startTime: '04:40:00',
-        durationMinutes: 18,
-        isInterrupted: true,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '06:25:00',
-        durationMinutes: 24,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '00:10:00', durationMinutes: 15 },
-      { type: 'Core', startTime: '00:25:00', durationMinutes: 38 },
-      { type: 'Deep', startTime: '01:03:00', durationMinutes: 42 },
-      { type: 'REM', startTime: '01:45:00', durationMinutes: 15 },
-      { type: 'Awake', startTime: '02:00:00', durationMinutes: 8 },
-      { type: 'Core', startTime: '02:08:00', durationMinutes: 40 },
-      { type: 'Deep', startTime: '02:48:00', durationMinutes: 35 },
-      { type: 'REM', startTime: '03:23:00', durationMinutes: 20 },
-      { type: 'Core', startTime: '03:43:00', durationMinutes: 45 },
-      { type: 'Awake', startTime: '04:28:00', durationMinutes: 12 },
-      { type: 'Core', startTime: '04:40:00', durationMinutes: 35 },
-      { type: 'REM', startTime: '05:15:00', durationMinutes: 18 },
-      { type: 'Core', startTime: '05:33:00', durationMinutes: 48 },
-      { type: 'REM', startTime: '06:21:00', durationMinutes: 24 },
-      { type: 'Core', startTime: '06:45:00', durationMinutes: 50 },
-      { type: 'Awake', startTime: '07:35:00', durationMinutes: 30 },
-    ],
-    heartRateData: {
-      restingBPM: 60,
-      averageBPM: 65,
-      minBPM: 56,
-      maxBPM: 82,
-      spikes: [
-        {
-          time: '02:05:00',
-          bpm: 79,
-          percentageAboveBaseline: 32,
-          context: 'Interrupted REM, brief awakening',
-        },
-        {
-          time: '03:38:00',
-          bpm: 76,
-          percentageAboveBaseline: 27,
-          context: 'Stressful dream content',
-        },
-        {
-          time: '04:30:00',
-          bpm: 82,
-          percentageAboveBaseline: 37,
-          context: 'Nightmare awakening',
-        },
-        {
-          time: '06:35:00',
-          bpm: 73,
-          percentageAboveBaseline: 22,
-          context: 'Final REM cycle activity',
-        },
-      ],
-    },
-  },
-  {
-    id: '4',
-    date: '2025-10-14',
-    startTime: '23:20:00',
-    endTime: '07:10:00',
-    totalDurationMinutes: 470,
-    sleepQuality: 'good',
-    wakeUps: 2,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '00:40:00',
-        durationMinutes: 19,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 2,
-        startTime: '02:25:00',
-        durationMinutes: 23,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 3,
-        startTime: '04:20:00',
-        durationMinutes: 21,
-        isInterrupted: true,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '06:05:00',
-        durationMinutes: 27,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '23:20:00', durationMinutes: 14 },
-      { type: 'Core', startTime: '23:34:00', durationMinutes: 42 },
-      { type: 'Deep', startTime: '00:16:00', durationMinutes: 50 },
-      { type: 'REM', startTime: '01:06:00', durationMinutes: 19 },
-      { type: 'Core', startTime: '01:25:00', durationMinutes: 48 },
-      { type: 'Deep', startTime: '02:13:00', durationMinutes: 40 },
-      { type: 'REM', startTime: '02:53:00', durationMinutes: 23 },
-      { type: 'Core', startTime: '03:16:00', durationMinutes: 46 },
-      { type: 'Awake', startTime: '04:02:00', durationMinutes: 10 },
-      { type: 'REM', startTime: '04:12:00', durationMinutes: 21 },
-      { type: 'Core', startTime: '04:33:00', durationMinutes: 50 },
-      { type: 'REM', startTime: '05:23:00', durationMinutes: 27 },
-      { type: 'Core', startTime: '05:50:00', durationMinutes: 55 },
-      { type: 'Awake', startTime: '06:45:00', durationMinutes: 25 },
-    ],
-    heartRateData: {
-      restingBPM: 59,
-      averageBPM: 63,
-      minBPM: 55,
-      maxBPM: 76,
-      spikes: [
-        {
-          time: '03:05:00',
-          bpm: 74,
-          percentageAboveBaseline: 25,
-          context: 'Dream activity',
-        },
-        {
-          time: '05:38:00',
-          bpm: 76,
-          percentageAboveBaseline: 29,
-          context: 'Final REM cycle',
-        },
-      ],
-    },
-  },
-  {
-    id: '5',
-    date: '2025-10-13',
-    startTime: '00:05:00',
-    endTime: '07:55:00',
-    totalDurationMinutes: 470,
-    sleepQuality: 'fair',
-    wakeUps: 3,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '01:15:00',
-        durationMinutes: 17,
-        isInterrupted: true,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 2,
-        startTime: '03:00:00',
-        durationMinutes: 21,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 3,
-        startTime: '04:50:00',
-        durationMinutes: 19,
-        isInterrupted: true,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '06:35:00',
-        durationMinutes: 23,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '00:05:00', durationMinutes: 18 },
-      { type: 'Core', startTime: '00:23:00', durationMinutes: 40 },
-      { type: 'Deep', startTime: '01:03:00', durationMinutes: 45 },
-      { type: 'REM', startTime: '01:48:00', durationMinutes: 17 },
-      { type: 'Awake', startTime: '02:05:00', durationMinutes: 12 },
-      { type: 'Core', startTime: '02:17:00', durationMinutes: 38 },
-      { type: 'Deep', startTime: '02:55:00', durationMinutes: 38 },
-      { type: 'REM', startTime: '03:33:00', durationMinutes: 21 },
-      { type: 'Core', startTime: '03:54:00', durationMinutes: 44 },
-      { type: 'Awake', startTime: '04:38:00', durationMinutes: 10 },
-      { type: 'REM', startTime: '04:48:00', durationMinutes: 19 },
-      { type: 'Core', startTime: '05:07:00', durationMinutes: 52 },
-      { type: 'REM', startTime: '05:59:00', durationMinutes: 23 },
-      { type: 'Core', startTime: '06:22:00', durationMinutes: 48 },
-      { type: 'Awake', startTime: '07:10:00', durationMinutes: 45 },
-    ],
-    heartRateData: {
-      restingBPM: 61,
-      averageBPM: 66,
-      minBPM: 57,
-      maxBPM: 80,
-      spikes: [
-        {
-          time: '02:10:00',
-          bpm: 78,
-          percentageAboveBaseline: 28,
-          context: 'Brief awakening',
-        },
-        {
-          time: '04:40:00',
-          bpm: 80,
-          percentageAboveBaseline: 31,
-          context: 'Interrupted REM',
-        },
-        {
-          time: '06:45:00',
-          bpm: 75,
-          percentageAboveBaseline: 23,
-          context: 'Dream content',
-        },
-      ],
-    },
-  },
-  {
-    id: '6',
-    date: '2025-10-12',
-    startTime: '23:55:00',
-    endTime: '07:30:00',
-    totalDurationMinutes: 455,
-    sleepQuality: 'good',
-    wakeUps: 1,
-    remCycles: [
-      {
-        cycleNumber: 1,
-        startTime: '00:50:00',
-        durationMinutes: 20,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-      {
-        cycleNumber: 2,
-        startTime: '02:35:00',
-        durationMinutes: 24,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 3,
-        startTime: '04:25:00',
-        durationMinutes: 26,
-        isInterrupted: false,
-        isPrimaryDream: true,
-      },
-      {
-        cycleNumber: 4,
-        startTime: '06:10:00',
-        durationMinutes: 29,
-        isInterrupted: false,
-        isPrimaryDream: false,
-      },
-    ],
-    stages: [
-      { type: 'Awake', startTime: '23:55:00', durationMinutes: 12 },
-      { type: 'Core', startTime: '00:07:00', durationMinutes: 38 },
-      { type: 'Deep', startTime: '00:45:00', durationMinutes: 54 },
-      { type: 'REM', startTime: '01:39:00', durationMinutes: 20 },
-      { type: 'Core', startTime: '01:59:00', durationMinutes: 44 },
-      { type: 'Deep', startTime: '02:43:00', durationMinutes: 46 },
-      { type: 'REM', startTime: '03:29:00', durationMinutes: 24 },
-      { type: 'Core', startTime: '03:53:00', durationMinutes: 40 },
-      { type: 'REM', startTime: '04:33:00', durationMinutes: 26 },
-      { type: 'Core', startTime: '04:59:00', durationMinutes: 48 },
-      { type: 'REM', startTime: '05:47:00', durationMinutes: 29 },
-      { type: 'Core', startTime: '06:16:00', durationMinutes: 52 },
-      { type: 'Awake', startTime: '07:08:00', durationMinutes: 22 },
-    ],
-    heartRateData: {
-      restingBPM: 57,
-      averageBPM: 60,
-      minBPM: 53,
-      maxBPM: 72,
-      spikes: [
-        {
-          time: '03:42:00',
-          bpm: 69,
-          percentageAboveBaseline: 21,
-          context: 'Moderate dream activity',
-        },
-        {
-          time: '05:55:00',
-          bpm: 72,
-          percentageAboveBaseline: 26,
-          context: 'Vivid dream sequence',
-        },
-      ],
+      respiratory_rate: 15.2,
+      sleep_performance_percentage: 74,
+      sleep_consistency_percentage: 72,
+      sleep_efficiency_percentage: 85,
     },
   },
 ];
+
+const DEMO_WHOOP_BUNDLE: DemoSleepBundle[] = DEMO_WHOOP_RAW.map((record) => ({
+  raw: record,
+  mapped: convertRecord(record),
+}));
+
+export const DEMO_WHOOP_RECORDS: WhoopSleepRecord[] = DEMO_WHOOP_BUNDLE.map((bundle) => bundle.raw);
+export const DEMO_SLEEP_DATA: SleepSession[] = DEMO_WHOOP_BUNDLE.map((bundle) => bundle.mapped);
 

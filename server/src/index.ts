@@ -11,6 +11,7 @@ import whoopRoutes from './routes/whoop';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
+let server: import('http').Server | null = null;
 
 // Middleware
 app.use(cors({
@@ -87,10 +88,24 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Dream Machine API server running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔐 OAuth callback: http://localhost:${PORT}/auth/whoop/callback`);
+try {
+  server = app.listen(PORT, () => {
+    console.log(`🚀 Dream Machine API server running on port ${PORT}`);
+    console.log(`📍 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔐 OAuth callback: http://localhost:${PORT}/auth/whoop/callback`);
+  });
+} catch (error: any) {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Do you have another instance running?`);
+  } else {
+    console.error('❌ Failed to start server:', error);
+  }
+}
+
+process.on('SIGTERM', () => {
+  if (server) {
+    server.close();
+  }
 });
 
 export default app;

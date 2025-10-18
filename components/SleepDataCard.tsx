@@ -1,18 +1,220 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import type { ComponentProps } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { SleepSession } from '../constants/Types';
-import { formatDuration, formatTime } from '../utils/dateHelpers';
+import { SleepSession, WhoopSleepRecord } from '../constants/Types';
+import { formatDuration, formatTime, formatDateTimeISO, formatDateAndTimeParts, formatTimezoneGMT } from '../utils/dateHelpers';
 import Colors from '../constants/Colors';
 
-interface SleepDataCardProps {
-  sleepSession: SleepSession;
+type SleepDataCardProps = {
+  sleepSession: SleepSession | WhoopSleepRecord;
   isWhoopData: boolean;
   showGenerateButton?: boolean;
   onGenerate?: () => void;
   isGenerating?: boolean;
-}
+};
+
+type MetricRowProps = {
+  label: string;
+  value: string;
+  icon?: ComponentProps<typeof Ionicons>['name'];
+};
+
+type Section = {
+  label: string;
+  metrics?: { label: string; value: string }[];
+  rawJson?: unknown;
+  isDebug?: boolean; // hidden by default, revealed via toggle
+};
+
+const MetricRow = ({ label, value, icon }: MetricRowProps) => (
+  <View style={styles.metricRow}>
+    <View style={styles.metricLabelWrapper}>
+      {icon && <Ionicons name={icon} size={16} color={Colors.textMuted} style={styles.metricIcon} />}
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+    <Text style={styles.metricValue}>{value}</Text>
+  </View>
+);
+
+const isSleepSessionRecord = (
+  data: SleepSession | WhoopSleepRecord,
+): data is SleepSession => {
+  return 'remCycles' in data;
+};
+
+const minutesFromMilliseconds = (value?: number) => {
+  if (!value || Number.isNaN(value)) {
+    return 0;
+  }
+  return Math.round(value / 60000);
+};
+
+const formatPercentage = (value?: number) => {
+  if (value == null) return '—';
+  return `${Math.round(value)}%`;
+};
+
+const formatMinutes = (value?: number) => {
+  if (value == null || Number.isNaN(value)) return '—';
+  return formatDuration(Math.round(value));
+};
+
+const stringifyValue = (value: unknown): string => {
+  if (value == null) return '—';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
+const formatDateTimeSafe = (
+  primaryISO?: string,
+  fallbackParts?: { date: string; time: string },
+  raw?: string,
+) => {
+  const formatted = formatDateTimeISO(primaryISO);
+  if (formatted) return formatted;
+  if (fallbackParts) return formatDateAndTimeParts(fallbackParts.date, fallbackParts.time);
+  if (raw) return raw; // show raw value instead of dash when rendering fails
+  return '—';
+};
+
+const formatSleepNeeded = (millis?: number) => {
+  if (millis == null) return '—';
+  const hours = Math.floor(millis / 3600000);
+  const minutes = Math.round((millis % 3600000) / 60000);
+  if (hours === 0 && minutes === 0) return '0m';
+  if (hours <= 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+};
+
+const buildWhoopSections = (record: WhoopSleepRecord, mappedFallback?: SleepSession): Section[] => {
+  const summary = record.score?.stage_summary;
+  const sleepNeeded = record.score?.sleep_needed;
+
+  const mappedParts = mappedFallback
+    ? { date: mappedFallback.date, start: mappedFallback.startTime, end: mappedFallback.endTime }
+    : undefined;
+
+  const startDisplay = formatDateTimeSafe(
+    record.start,
+    mappedParts ? { date: mappedParts.date, time: mappedParts.start } : undefined,
+    record.start,
+  );
+  const endDisplay = formatDateTimeSafe(
+    record.end,
+    mappedParts ? { date: mappedParts.date, time: mappedParts.end } : undefined,
+    record.end,
+  );
+  const recordedDisplay = formatDateTimeSafe(
+    record.created_at,
+    mappedParts ? { date: mappedParts.date, time: mappedParts.start } : undefined,
+    record.created_at || record.start,
+  );
+  const timezoneDisplay =
+    formatTimezoneGMT(record.timezone_offset, record.start) ?? record.timezone_offset ?? '—';
+
+  const inBedMinutes = summary
+    ? minutesFromMilliseconds(summary.total_in_bed_time_milli)
+    : mappedFallback?.totalDurationMinutes ?? null;
+  const awakeMinutes = summary
+    ? minutesFromMilliseconds(summary.total_awake_time_milli)
+    : mappedFallback?.stages
+        .filter((stage) => stage.type === 'Awake')
+        .reduce((acc, stage) => acc + stage.durationMinutes, 0) ?? null;
+
+  const lightMinutes = summary ? minutesFromMilliseconds(summary.total_light_sleep_time_milli) : undefined;
+  const deepMinutes = summary ? minutesFromMilliseconds(summary.total_slow_wave_sleep_time_milli) : mappedFallback
+    ? mappedFallback.stages.filter((stage) => stage.type === 'Deep').reduce((acc, stage) => acc + stage.durationMinutes, 0)
+    : undefined;
+  const remMinutes = summary ? minutesFromMilliseconds(summary.total_rem_sleep_time_milli) : mappedFallback
+    ? mappedFallback.remCycles.reduce((acc, cycle) => acc + cycle.durationMinutes, 0)
+    : undefined;
+  const disturbanceCount = summary?.disturbance_count ?? mappedFallback?.wakeUps;
+
+  return [
+    {
+      label: 'Entry',
+      metrics: [
+        { label: 'Source', value: record.nap ? 'WHOOP Nap' : 'WHOOP Sleep' },
+        { label: 'Recorded', value: recordedDisplay },
+        { label: 'Timezone', value: timezoneDisplay },
+        { label: 'Score State', value: record.score_state ?? '—' },
+      ],
+    },
+    {
+      label: 'Duration',
+      metrics: [
+        { label: 'Start', value: startDisplay },
+        { label: 'End', value: endDisplay },
+        { label: 'In Bed', value: inBedMinutes != null ? formatMinutes(inBedMinutes) : '—' },
+        { label: 'Awake', value: awakeMinutes != null ? formatMinutes(awakeMinutes) : '—' },
+      ],
+    },
+    {
+      label: 'Sleep Quality',
+      metrics: [
+        { label: 'Performance', value: formatPercentage(record.score?.sleep_performance_percentage) },
+        { label: 'Consistency', value: formatPercentage(record.score?.sleep_consistency_percentage) },
+        { label: 'Efficiency', value: formatPercentage(record.score?.sleep_efficiency_percentage) },
+        { label: 'Respiratory Rate', value: record.score?.respiratory_rate ? `${record.score.respiratory_rate.toFixed(1)} rpm` : '—' },
+      ],
+    },
+    {
+      label: 'Sleep Needed',
+      metrics: [
+        { label: 'Baseline', value: formatSleepNeeded(sleepNeeded?.baseline_milli) },
+        { label: 'From Sleep Debt', value: formatSleepNeeded(sleepNeeded?.need_from_sleep_debt_milli) },
+        { label: 'From Strain', value: formatSleepNeeded(sleepNeeded?.need_from_recent_strain_milli) },
+        { label: 'From Recent Nap', value: formatSleepNeeded(sleepNeeded?.need_from_recent_nap_milli) },
+      ],
+    },
+    {
+      label: 'Stage Summary',
+      metrics: [
+        { label: 'Light (Core)', value: lightMinutes != null ? formatMinutes(lightMinutes) : '—' },
+        { label: 'Deep', value: deepMinutes != null ? formatMinutes(deepMinutes) : '—' },
+        { label: 'REM', value: remMinutes != null ? formatMinutes(remMinutes) : '—' },
+        { label: 'Disturbances', value: disturbanceCount != null ? String(disturbanceCount) : '—' },
+      ],
+    },
+    {
+      label: 'Raw WHOOP JSON',
+      rawJson: record,
+      isDebug: true,
+    },
+    {
+      label: 'Raw WHOOP Data',
+      metrics: [
+        { label: 'id', value: stringifyValue(record.id) },
+        { label: 'cycle_id', value: stringifyValue(record.cycle_id) },
+        { label: 'v1_id', value: stringifyValue(record.v1_id) },
+        { label: 'user_id', value: stringifyValue(record.user_id) },
+        { label: 'created_at', value: stringifyValue(record.created_at) },
+        { label: 'updated_at', value: stringifyValue(record.updated_at) },
+        { label: 'start', value: stringifyValue(record.start) },
+        { label: 'end', value: stringifyValue(record.end) },
+        { label: 'timezone_offset', value: stringifyValue(record.timezone_offset) },
+        { label: 'nap', value: stringifyValue(record.nap) },
+        { label: 'score_state', value: stringifyValue(record.score_state) },
+        { label: 'respiratory_rate', value: stringifyValue(record.score?.respiratory_rate) },
+        { label: 'performance_%', value: stringifyValue(record.score?.sleep_performance_percentage) },
+        { label: 'consistency_%', value: stringifyValue(record.score?.sleep_consistency_percentage) },
+        { label: 'efficiency_%', value: stringifyValue(record.score?.sleep_efficiency_percentage) },
+        { label: 'stage_summary', value: stringifyValue(record.score?.stage_summary) },
+        { label: 'sleep_needed', value: stringifyValue(record.score?.sleep_needed) },
+      ],
+      isDebug: true,
+    },
+  ];
+};
 
 export function SleepDataCard({
   sleepSession,
@@ -21,6 +223,91 @@ export function SleepDataCard({
   onGenerate,
   isGenerating = false
 }: SleepDataCardProps) {
+  const canGenerate = isSleepSessionRecord(sleepSession);
+  const shouldRenderRaw = isWhoopData || !canGenerate;
+
+  if (shouldRenderRaw) {
+    const sections = useMemo(
+      () => buildWhoopSections(sleepSession as WhoopSleepRecord, canGenerate ? (sleepSession as SleepSession) : undefined),
+      [sleepSession, canGenerate]
+    );
+
+    const [showMissing, setShowMissing] = useState(false);
+
+    const { visibleSections, hiddenCount } = useMemo(() => {
+      let count = 0;
+      const filtered = sections
+        .map((section) => {
+          if (!showMissing && section.isDebug) {
+            // Count all items hidden in this debug section (JSON block counts as 1)
+            count += (section.metrics ? section.metrics.length : 0) + (section.rawJson !== undefined ? 1 : 0);
+            return { ...section, metrics: [], rawJson: undefined } as Section; // will be filtered out below
+          }
+          if (!section.metrics) return section;
+          const missing = section.metrics.filter((m) => m.value === '—');
+          count += missing.length;
+          if (showMissing) return section;
+          const present = section.metrics.filter((m) => m.value !== '—');
+          return { ...section, metrics: present };
+        })
+        .filter((s) => {
+          if (s.metrics && s.metrics.length === 0 && s.rawJson === undefined) return false;
+          return true;
+        });
+      return { visibleSections: filtered, hiddenCount: count };
+    }, [sections, showMissing]);
+
+    return (
+      <BlurView intensity={10} tint="dark" style={styles.containerRaw}>
+        <View style={styles.headerRow}>
+          <Ionicons name="fitness" size={16} color={Colors.primary} />
+          <Text style={styles.rawTitle}>WHOOP Sleep Entry</Text>
+        </View>
+        <ScrollView style={styles.rawScroll} showsVerticalScrollIndicator={false}>
+          {visibleSections.map((section) => (
+            <View key={section.label} style={styles.groupCard}>
+              <Text style={styles.groupLabel}>{section.label}</Text>
+              {section.metrics && section.metrics.map((metric) => (
+                <MetricRow key={metric.label} label={metric.label} value={metric.value} />
+              ))}
+              {section.rawJson !== undefined && (
+                <View style={styles.codeContainer}>
+                  <Text selectable style={styles.codeText}>
+                    {JSON.stringify(section.rawJson, null, 2)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity
+            onPress={() => setShowMissing((v) => !v)}
+            style={styles.toggleMissingButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={showMissing ? 'eye-off' : 'eye'}
+              size={16}
+              color={Colors.textMuted}
+            />
+            <Text style={styles.toggleMissingText}>
+              {showMissing ? 'Hide' : 'Show'} hidden details{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+        {showGenerateButton && (
+          <TouchableOpacity
+            style={[styles.generateButton, styles.generateButtonDisabled]}
+            disabled
+            activeOpacity={1}
+          >
+            <Ionicons name="sparkles" size={18} color={Colors.textMuted} />
+            <Text style={styles.generateButtonTextMuted}>Dream generation coming soon for WHOOP</Text>
+          </TouchableOpacity>
+        )}
+      </BlurView>
+    );
+  }
+
   const getQualityStars = (quality: string) => {
     const stars = {
       excellent: 4,
@@ -161,9 +448,19 @@ export function SleepDataCard({
           style={[styles.generateButton, isGenerating && styles.generateButtonDisabled]}
           onPress={onGenerate}
           disabled={isGenerating}
+          activeOpacity={isGenerating ? 1 : 0.7}
         >
-          <Ionicons name="sparkles" size={18} color={Colors.text} />
-          <Text style={styles.generateButtonText}>Generate</Text>
+          {isGenerating ? (
+            <>
+              <ActivityIndicator size="small" color={Colors.text} />
+              <Text style={styles.generateButtonText}>Generating...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="sparkles" size={18} color={Colors.text} />
+              <Text style={styles.generateButtonText}>Generate</Text>
+            </>
+          )}
         </TouchableOpacity>
       )}
     </BlurView>
@@ -245,7 +542,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   remCycle: {
-    backgroundColor: Colors.surfaceSubtle,
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
@@ -339,5 +636,102 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
+  },
+  generateButtonTextMuted: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  containerRaw: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 16,
+    gap: 16,
+    backgroundColor: Colors.surface,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rawTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  rawScroll: {
+    maxHeight: 420,
+  },
+  groupCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  groupLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  toggleMissingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginTop: 6,
+  },
+  toggleMissingText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  metricLabelWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metricIcon: {
+    marginRight: 2,
+  },
+  metricLabel: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  metricValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  codeContainer: {
+    backgroundColor: Platform.select({ ios: 'rgba(0,0,0,0.3)', android: 'rgba(0,0,0,0.3)', default: 'rgba(0,0,0,0.3)' }),
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  codeText: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontSize: 12,
+    color: Colors.textSubtle,
   },
 });

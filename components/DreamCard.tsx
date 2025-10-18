@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   videoErrorContainer: {
-    backgroundColor: Colors.surfaceSubtle,
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',

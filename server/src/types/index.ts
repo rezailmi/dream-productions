@@ -122,6 +122,27 @@ export interface VeoVideoRequest {
   generateAudio: boolean;
 }
 
+export interface SleepVideoContext {
+  date?: string;
+  sleepQuality?: SleepQuality;
+  totalDurationMinutes?: number;
+  remDurationMinutes?: number;
+  deepDurationMinutes?: number;
+  wakeUps?: number;
+  respiratoryRate?: number;
+  heartRate?: {
+    resting?: number;
+    average?: number;
+    min?: number;
+    max?: number;
+  };
+}
+
+export interface VeoPromptContext {
+  narrative: DreamNarrative;
+  sleepMetrics?: SleepVideoContext;
+}
+
 export interface VeoVideoResponse {
   operationId: string;
   videoUrl?: string;

@@ -1,17 +1,59 @@
 import axios, { AxiosInstance } from 'axios';
 import { WhoopSleepData, WhoopRecoveryData } from '../types';
-import { generateREMCyclesFromAggregate } from '../utils/remCycleGenerator';
+import { generateRemCyclesFromAggregate } from '../utils/remCycleGenerator';
 
 export class WhoopService {
   private client: AxiosInstance;
 
   constructor() {
+    // Use configurable base URL, defaulting to v1 API that is currently live
+    // Docs: https://developer.whoop.com/api
+    const baseURL = process.env.WHOOP_API_BASE_URL || 'https://api.prod.whoop.com/developer/v1';
+    
     this.client = axios.create({
-      baseURL: 'https://api.prod.whoop.com/developer/v2',
+      baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
     });
+
+    // Add request interceptor for debugging
+    this.client.interceptors.request.use(
+      (config) => {
+        console.log('WHOOP API Request:', {
+          method: config.method?.toUpperCase(),
+          url: `${config.baseURL}${config.url}`,
+          params: config.params,
+          hasAuth: !!config.headers?.Authorization,
+        });
+        return config;
+      },
+      (error) => {
+        console.error('WHOOP API Request Error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    // Add response interceptor for debugging
+    this.client.interceptors.response.use(
+      (response) => {
+        console.log('WHOOP API Response:', {
+          status: response.status,
+          url: response.config.url,
+          dataSize: JSON.stringify(response.data).length,
+        });
+        return response;
+      },
+      (error) => {
+        console.error('WHOOP API Error Response:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          url: error.config?.url,
+          data: error.response?.data,
+        });
+        return Promise.reject(error);
+      }
+    );
   }
 
   /**
@@ -27,22 +69,36 @@ export class WhoopService {
     }
   ): Promise<{ records: WhoopSleepData[]; next_token?: string }> {
     try {
-      // Build query params, ensuring correct API parameter names
+      // Build query params with defaults
+      const requestedLimit = params?.limit ?? 10;
+      const limit = Math.min(Math.max(requestedLimit, 1), 25);
+
       const queryParams: any = {
-        limit: params?.limit || 10,
+        limit,
       };
 
-      // Only include start/end if provided (ISO 8601 format expected)
-      if (params?.start) queryParams.start = params.start;
-      if (params?.end) queryParams.end = params.end;
-      // WHOOP API v2 uses next_token (snake_case), not nextToken
+      if (requestedLimit > 25) {
+        console.warn(
+          `WHOOP API limit capped to 25 (requested ${requestedLimit})`
+        );
+      }
+
+      // Default to last 30 days if no date range provided
+      if (!params?.start && !params?.end) {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        queryParams.start = thirtyDaysAgo.toISOString();
+        queryParams.end = now.toISOString();
+      } else {
+        // Use provided dates (must be in ISO 8601 format)
+        if (params?.start) queryParams.start = params.start;
+        if (params?.end) queryParams.end = params.end;
+      }
+
+      // WHOOP API uses next_token (snake_case), not nextToken
       if (params?.nextToken) queryParams.next_token = params.nextToken;
 
-      console.log('WHOOP API Request:', {
-        endpoint: '/activity/sleep',
-        params: queryParams,
-      });
-
+      // v1 API uses /activity/sleep endpoint
       const response = await this.client.get('/activity/sleep', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -50,23 +106,19 @@ export class WhoopService {
         params: queryParams,
       });
 
-      console.log('WHOOP API Response:', {
-        recordCount: response.data?.records?.length || 0,
-        hasNextToken: !!response.data?.next_token,
-      });
-
       return response.data;
     } catch (error: any) {
-      console.error('WHOOP API Error (getSleepData):', `HTTP ${error.response?.status} ${error.response?.statusText || error.message}`);
-
-      // Log response data for debugging
-      if (error.response?.data) {
-        console.error('WHOOP API Error Details:', error.response.data);
-      }
+      console.error('WHOOP API Error (getSleepData):', {
+        status: error.response?.status,
+        message: error.response?.statusText || error.message,
+        details: error.response?.data,
+      });
 
       // Preserve the original error with response for proper status code handling
       if (error.response) {
-        const preservedError: any = new Error(`Failed to fetch sleep data: ${error.response?.data?.error || error.message}`);
+        const preservedError: any = new Error(
+          `Failed to fetch sleep data: ${error.response?.data?.message || error.response?.data?.error || error.message}`
+        );
         preservedError.response = error.response;
         throw preservedError;
       }
@@ -76,9 +128,11 @@ export class WhoopService {
 
   /**
    * Get specific sleep session by ID
+   * Note: In v2, sleep IDs are UUIDs. Response includes both id (UUID) and v1_id (integer)
    */
   async getSleepById(accessToken: string, sleepId: string): Promise<WhoopSleepData> {
     try {
+      // v1 API uses /activity/sleep/{id} endpoint
       const response = await this.client.get(`/activity/sleep/${sleepId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -87,11 +141,17 @@ export class WhoopService {
 
       return response.data;
     } catch (error: any) {
-      console.error('WHOOP API Error (getSleepById):', `HTTP ${error.response?.status} ${error.response?.statusText || error.message}`);
+      console.error('WHOOP API Error (getSleepById):', {
+        status: error.response?.status,
+        message: error.response?.statusText || error.message,
+        details: error.response?.data,
+      });
 
       // Preserve the original error with response for proper status code handling
       if (error.response) {
-        const preservedError: any = new Error(`Failed to fetch sleep by ID: ${error.response?.data?.error || error.message}`);
+        const preservedError: any = new Error(
+          `Failed to fetch sleep by ID: ${error.response?.data?.message || error.response?.data?.error || error.message}`
+        );
         preservedError.response = error.response;
         throw preservedError;
       }
@@ -101,9 +161,11 @@ export class WhoopService {
 
   /**
    * Get recovery data for a specific cycle
+   * Note: In v2, use the /v2/recovery endpoint with cycle_id parameter
    */
-  async getRecoveryByCycle(accessToken: string, cycleId: number): Promise<WhoopRecoveryData> {
+  async getRecoveryByCycle(accessToken: string, cycleId: string): Promise<WhoopRecoveryData> {
     try {
+      // v1 API uses /cycle/{id}/recovery endpoint for recovery data
       const response = await this.client.get(`/cycle/${cycleId}/recovery`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -112,11 +174,17 @@ export class WhoopService {
 
       return response.data;
     } catch (error: any) {
-      console.error('WHOOP API Error (getRecoveryByCycle):', `HTTP ${error.response?.status} ${error.response?.statusText || error.message}`);
+      console.error('WHOOP API Error (getRecoveryByCycle):', {
+        status: error.response?.status,
+        message: error.response?.statusText || error.message,
+        details: error.response?.data,
+      });
 
       // Preserve the original error with response for proper status code handling
       if (error.response) {
-        const preservedError: any = new Error(`Failed to fetch recovery data: ${error.response?.data?.error || error.message}`);
+        const preservedError: any = new Error(
+          `Failed to fetch recovery data: ${error.response?.data?.message || error.response?.data?.error || error.message}`
+        );
         preservedError.response = error.response;
         throw preservedError;
       }
@@ -239,7 +307,7 @@ export class WhoopService {
     const totalDeepMilli = stageSummary.total_slow_wave_sleep_time_milli ?? 0;
 
     // Generate realistic REM cycles from WHOOP aggregate data
-    const remCycles = generateREMCyclesFromAggregate(
+    const remCycles = generateRemCyclesFromAggregate(
       totalRemMilli,
       cycleCount,
       disturbanceCount,

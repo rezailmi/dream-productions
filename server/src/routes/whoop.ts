@@ -32,7 +32,6 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
       }
     );
 
-    // Check if no records were returned
     if (!sleepData.records || sleepData.records.length === 0) {
       console.log('No WHOOP sleep records found for the requested date range');
       return res.status(404).json({
@@ -41,36 +40,7 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
         records: [],
       });
     }
-
-    // Map WHOOP data to our SleepSession format (optimized single-pass)
-    const mappedSessions = sleepData.records.reduce((acc: any[], record: any) => {
-      // Skip unscored sessions
-      if (!record.score) return acc;
-
-      try {
-        const mapped = whoopService.mapWhoopToSleepSession(record);
-        acc.push(mapped);
-      } catch (error) {
-        console.log(`Skipping unscored sleep session: ${record.id}`);
-      }
-
-      return acc;
-    }, []);
-
-    // Check if all records were unscored
-    if (mappedSessions.length === 0) {
-      console.log('All WHOOP sleep records are unscored');
-      return res.status(404).json({
-        error: 'No scored sleep data',
-        message: 'Your WHOOP sleep records exist but are not yet scored. WHOOP typically scores sleep data within a few hours. Please try again later.',
-        records: [],
-      });
-    }
-
-    res.json({
-      records: mappedSessions,
-      next_token: sleepData.next_token,
-    });
+    res.json(sleepData);
   } catch (error: any) {
     console.error('Error fetching sleep data:', error);
 
@@ -78,13 +48,29 @@ router.get('/sleep', authenticateWhoopToken, async (req: Request, res: Response)
     if (error.response?.status === 404) {
       return res.status(404).json({
         error: 'No sleep data found',
-        message: 'No sleep records were found in your WHOOP account. This could mean:\n1. You haven\'t worn your WHOOP device during sleep\n2. The requested date range has no sleep data\n3. Your WHOOP account is new and doesn\'t have historical data yet',
+        message: 'No sleep records were found in your WHOOP account. This could mean:\n1. You haven\'t worn your WHOOP device during sleep\n2. The requested date range has no sleep data\n3. Your WHOOP account is new and doesn\'t have historical data yet\n4. API endpoint may have changed - ensure you\'re using v1 API',
         records: [],
+        troubleshooting: {
+          apiVersion: 'v1',
+          baseUrl: process.env.WHOOP_API_BASE_URL || 'https://api.prod.whoop.com/developer/v1',
+          endpoint: '/activity/sleep',
+          suggestion: 'Try reconnecting your WHOOP account or check server logs for details'
+        }
+      });
+    }
+
+    // Handle 401/403 authentication errors
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return res.status(error.response.status).json({
+        error: 'Authentication failed',
+        message: 'Your WHOOP access token is invalid or expired. Please reconnect your WHOOP account in the app.',
+        needsReauth: true,
       });
     }
 
     res.status(error.response?.status || 500).json({
       error: error.message || 'Failed to fetch sleep data',
+      details: error.response?.data || 'No additional details available',
     });
   }
 });
@@ -106,12 +92,13 @@ router.get('/sleep/:sleepId', authenticateWhoopToken, async (req: Request, res: 
 });
 
 // Get recovery data for a cycle
+// Note: In v2, cycleId is a UUID (not an integer)
 router.get('/recovery/:cycleId', authenticateWhoopToken, async (req: Request, res: Response) => {
   try {
     const accessToken = (req as any).whoopAccessToken;
     const { cycleId } = req.params;
 
-    const recoveryData = await whoopService.getRecoveryByCycle(accessToken, parseInt(cycleId));
+    const recoveryData = await whoopService.getRecoveryByCycle(accessToken, cycleId);
     res.json(recoveryData);
   } catch (error: any) {
     console.error('Error fetching recovery data:', error);
