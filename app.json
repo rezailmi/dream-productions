@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dreammachine.app",
-      "deploymentTarget": "26.0",
+      "deploymentTarget": "18.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -31,7 +31,8 @@
         "backgroundColor": "#1a1625"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.dreammachine.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

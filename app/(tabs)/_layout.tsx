@@ -9,11 +9,11 @@ export default function TabsLayout() {
       inactiveTintColor={Colors.inactive}
     >
       <NativeTabs.Trigger name="index">
-        <Icon ios={{ sfSymbol: 'house.fill' }} />
+        <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Dreams</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
-        <Icon ios={{ sfSymbol: 'person.crop.circle' }} />
+        <Icon sf={{ default: 'person', selected: 'person.fill' }} />
         <Label>Me</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
