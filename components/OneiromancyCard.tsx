@@ -24,11 +24,14 @@ export function OneiromancyCard({ title, dreamCount, imageSource, isCollected }:
       </View>
       
       <View style={styles.infoContainer}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, !isCollected && styles.titleUncollected]} numberOfLines={2}>
           {title}
         </Text>
-        <Text style={styles.subtitle}>
-          {dreamCount} dream{dreamCount !== 1 ? 's' : ''} captured
+        <Text style={[styles.subtitle, !isCollected && styles.subtitleUncollected]}>
+          {isCollected 
+            ? `${dreamCount} dream${dreamCount !== 1 ? 's' : ''} captured`
+            : 'Not yet collected'
+          }
         </Text>
       </View>
     </View>
@@ -70,12 +73,18 @@ const styles = StyleSheet.create({
     letterSpacing: -0.43,
     lineHeight: 22,
   },
+  titleUncollected: {
+    opacity: 0.5,
+  },
   subtitle: {
     fontSize: 13,
     fontWeight: '400',
     color: Colors.textSubtle,
     letterSpacing: -0.08,
     lineHeight: 18,
+  },
+  subtitleUncollected: {
+    opacity: 0.5,
   },
 });
 

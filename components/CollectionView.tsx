@@ -91,11 +91,47 @@ export function CollectionView({ dreams }: CollectionViewProps) {
     
     dreams.forEach(dream => {
       if (dream.prediction?.category) {
-        const category = dream.prediction.category.toLowerCase();
-        counts[category] = (counts[category] || 0) + 1;
+        const category = dream.prediction.category.toLowerCase().trim();
+        
+        console.log('🔍 Processing dream category:', {
+          dreamId: dream.id,
+          dreamTitle: dream.title,
+          rawCategory: dream.prediction.category,
+          normalizedCategory: category,
+        });
+        
+        // Try to match the category to one of our known categories
+        const matchedCategory = ONEIROMANCY_CATEGORIES.find(cat => {
+          const categoryName = cat.title.toLowerCase();
+          const categoryId = cat.category.toLowerCase();
+          
+          // More flexible matching:
+          // 1. Exact match with category ID
+          // 2. Exact match with full title
+          // 3. Category contains the ID (e.g., "health & vitality" contains "health")
+          // 4. ID contains the category (e.g., "health" contains "health")
+          // 5. First word match (e.g., "health" matches "health & vitality")
+          const firstWord = category.split(/[\s&]+/)[0];
+          const categoryFirstWord = categoryId.split(/[\s&]+/)[0];
+          
+          return category === categoryId || 
+                 category === categoryName ||
+                 categoryName.includes(category) ||
+                 category.includes(categoryId) ||
+                 firstWord === categoryFirstWord;
+        });
+        
+        if (matchedCategory) {
+          const key = matchedCategory.category;
+          counts[key] = (counts[key] || 0) + 1;
+          console.log('✅ Matched to category:', key, '- Total count:', counts[key]);
+        } else {
+          console.warn('❌ No match found for category:', category);
+        }
       }
     });
     
+    console.log('📊 Final category counts:', counts);
     return counts;
   }, [dreams]);
 
@@ -106,43 +142,30 @@ export function CollectionView({ dreams }: CollectionViewProps) {
 
   return (
     <View style={styles.container}>
-      {collectedCount === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No cards collected yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Generate dreams to start collecting oneiromancy cards
-          </Text>
-        </View>
-      ) : (
-        <>
-          <Text style={styles.headerText}>
-            {hasCollectedAll 
-              ? `You have collected all ${totalCategories} oneiromancy cards!`
-              : `Collected ${collectedCount} of ${totalCategories} oneiromancy cards`
-            }
-          </Text>
+      <Text style={styles.headerText}>
+        {hasCollectedAll 
+          ? `You have collected all ${totalCategories} oneiromancy cards!`
+          : `Collected ${collectedCount} of ${totalCategories} oneiromancy cards`
+        }
+      </Text>
 
-          <View style={styles.grid}>
-            {ONEIROMANCY_CATEGORIES.map((category) => {
-              const dreamCount = dreamCountByCategory[category.category] || 0;
-              
-              // Only show cards that have been collected
-              if (dreamCount === 0) return null;
-              
-              return (
-                <View key={category.id} style={styles.cardColumn}>
-                  <OneiromancyCard
-                    title={category.title}
-                    dreamCount={dreamCount}
-                    imageSource={category.image}
-                    isCollected={true}
-                  />
-                </View>
-              );
-            })}
-          </View>
-        </>
-      )}
+      <View style={styles.grid}>
+        {ONEIROMANCY_CATEGORIES.map((category) => {
+          const dreamCount = dreamCountByCategory[category.category] || 0;
+          const isCollected = dreamCount > 0;
+          
+          return (
+            <View key={category.id} style={styles.cardColumn}>
+              <OneiromancyCard
+                title={category.title}
+                dreamCount={dreamCount}
+                imageSource={category.image}
+                isCollected={isCollected}
+              />
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
