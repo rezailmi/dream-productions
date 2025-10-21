@@ -19,6 +19,10 @@ export class GroqService {
     try {
       const prompt = this.buildPrompt(sleepData);
 
+      console.log('📡 Sending request to Groq API...');
+      console.log('   Model: openai/gpt-oss-120b');
+      console.log('   Max tokens: 12000 (high limit for reasoning model)');
+
       const completion = await this.client.chat.completions.create({
         model: 'openai/gpt-oss-120b', // OpenAI's 120B open model on Groq (500+ tokens/sec)
         messages: [
@@ -32,19 +36,37 @@ export class GroqService {
           },
         ],
         temperature: 1.2, // Higher creativity
-        max_tokens: 2000,
+        max_tokens: 12000, // High limit to accommodate extensive reasoning + actual JSON output
         response_format: { type: "json_object" }, // Ensure JSON output
       });
 
+      console.log('✅ Received response from Groq');
+      console.log('   Completion ID:', completion.id);
+      console.log('   Model used:', completion.model);
+      console.log('   Choices count:', completion.choices?.length);
+
       const response = completion.choices[0]?.message?.content;
       if (!response) {
+        console.error('❌ No content in response!');
+        console.error('   Full completion object:', JSON.stringify(completion, null, 2));
         throw new Error('No response from Groq API');
       }
+
+      console.log('✅ Got response content, length:', response.length);
 
       // Parse the structured response
       return this.parseNarrativeResponse(response);
     } catch (error: any) {
-      console.error('Groq API Error:', error);
+      console.error('❌ Groq API Error Details:');
+      console.error('   Error type:', error.constructor.name);
+      console.error('   Error message:', error.message);
+      console.error('   Error status:', error.status);
+      console.error('   Error code:', error.code);
+      if (error.response) {
+        console.error('   Response status:', error.response.status);
+        console.error('   Response data:', JSON.stringify(error.response.data, null, 2));
+      }
+      console.error('   Full error:', JSON.stringify(error, null, 2));
       throw new Error(`Failed to generate dream narrative: ${error.message}`);
     }
   }
