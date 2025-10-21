@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { DataSource, SleepSession, Dream, HealthDataContextType, WhoopSleepRecord } from '../constants/Types';
 import { DEMO_SLEEP_DATA, DEMO_WHOOP_RECORDS } from '../services/demoData';
 import { mapWhoopRecordToSleepSession } from '../utils/whoopSleepMapper';
+import { extractDateFromTimestamp, getDateRange } from '../utils/dateUtils';
+import { ErrorHandler } from '../utils/errorHandler';
 import apiClient from '../services/apiClient';
 import dreamStorage from '../services/dreamStorage';
 
@@ -30,7 +31,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     loadStoredData();
   }, []);
 
-  const loadStoredData = async () => {
+  const loadStoredData = useCallback(async () => {
     try {
       const [storedDreams, storedToken] = await Promise.all([
         dreamStorage.getDreams(),
@@ -67,18 +68,27 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading stored data:', error);
     }
-  };
+  }, []);
 
-  const fetchSleepData = async () => {
+  const handleSetWhoopAccessToken = useCallback(async (token: string | null) => {
+    setWhoopAccessToken(token);
+    if (token) {
+      await dreamStorage.saveWhoopToken(token);
+    } else {
+      await dreamStorage.clearWhoopToken();
+    }
+  }, []);
+
+  const fetchSleepData = useCallback(async () => {
     try {
       if (dataSource === 'demo') {
         setSleepSessions([...demoWhoopSessions, ...DEMO_WHOOP_RECORDS]);
       } else if (dataSource === 'apple-health') {
         // TODO: Implement Apple Health integration
-        Alert.alert('Coming Soon', 'Apple Health integration will be available in a future update.');
+        ErrorHandler.showAlert('Coming Soon', 'Apple Health integration will be available in a future update.');
       } else if (dataSource === 'whoop') {
         if (!whoopAccessToken) {
-          Alert.alert('Not Connected', 'Please connect your WHOOP account first.');
+          ErrorHandler.showAlert('Not Connected', 'Please connect your WHOOP account first.');
           return;
         }
 
@@ -90,35 +100,18 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
           setSleepSessions([]);
         }
 
-        Alert.alert('Success', `Fetched ${response.records?.length || 0} WHOOP sleep sessions`);
+        ErrorHandler.showAlert('Success', `Fetched ${response.records?.length || 0} WHOOP sleep sessions`);
       }
     } catch (error: any) {
       console.error('Error fetching sleep data:', error);
-
-      // Handle token expiration (401/403 errors)
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        await handleSetWhoopAccessToken(null);
-        Alert.alert(
-          'WHOOP Connection Expired',
-          'Your WHOOP connection has expired. Please reconnect in the Profile tab.'
-        );
-        return;
-      }
-
-      // Handle 404 errors with helpful message
-      if (error.response?.status === 404) {
-        const message = error.response?.data?.message || 'No sleep data found in your WHOOP account. Make sure you have been wearing your device during sleep.';
-        Alert.alert('No Sleep Data', message);
-        return;
-      }
-
-      // Generic error handling
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch sleep data from WHOOP. Please check your connection and try again.';
-      Alert.alert('Error', errorMessage);
+      await ErrorHandler.handleApiError(error, {
+        context: 'fetch',
+        onTokenExpired: () => handleSetWhoopAccessToken(null),
+      });
     }
-  };
+  }, [dataSource, whoopAccessToken, demoWhoopSessions, handleSetWhoopAccessToken]);
 
-  const generateDream = async (sleepSessionId: string) => {
+  const generateDream = useCallback(async (sleepSessionId: string) => {
     // Declare generatingDream outside try block so it's accessible in catch
     let generatingDream: Dream | null = null;
 
@@ -129,7 +122,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       const rawSession = sleepSessions.find((s) => s.id === sleepSessionId);
       if (!rawSession) {
         setIsGeneratingDream(false);
-        Alert.alert('Error', 'Sleep session not found');
+        ErrorHandler.showAlert('Error', 'Sleep session not found');
         return;
       }
 
@@ -143,7 +136,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
           sleepSession = mapWhoopRecordToSleepSession(rawSession as WhoopSleepRecord);
         } catch (error) {
           setIsGeneratingDream(false);
-          Alert.alert('Error', 'Unable to process WHOOP sleep data for dream generation');
+          ErrorHandler.showAlert('Error', 'Unable to process WHOOP sleep data for dream generation');
           return;
         }
       }
@@ -204,9 +197,9 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       await dreamStorage.saveDream(completedDream);
 
       if (completedDream.status === 'complete') {
-        Alert.alert('Dream Generated!', `"${completedDream.title}" is ready to view.`);
+        ErrorHandler.showAlert('Dream Generated!', `"${completedDream.title}" is ready to view.`);
       } else {
-        Alert.alert('Generation Failed', completedDream.error || 'Failed to generate dream');
+        ErrorHandler.showAlert('Generation Failed', completedDream.error || 'Failed to generate dream');
       }
     } catch (error: any) {
       console.error('Error generating dream:', error);
@@ -227,39 +220,30 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         await dreamStorage.saveDream(failedDream);
       }
 
-      Alert.alert('Error', error.message || 'Failed to generate dream');
+      ErrorHandler.showAlert('Error', error.message || 'Failed to generate dream');
     } finally {
       setIsGeneratingDream(false);
     }
-  };
+  }, [sleepSessions]);
 
-  const handleSetDataSource = (source: DataSource) => {
+  const handleSetDataSource = useCallback((source: DataSource) => {
     setDataSource(source);
     if (source === 'demo') {
       setSleepSessions(DEMO_SLEEP_DATA);
     }
-  };
+  }, []);
 
-  const handleSetWhoopAccessToken = async (token: string | null) => {
-    setWhoopAccessToken(token);
-    if (token) {
-      await dreamStorage.saveWhoopToken(token);
-    } else {
-      await dreamStorage.clearWhoopToken();
-    }
-  };
-
-  const handleDeleteDream = async (dreamId: string) => {
+  const handleDeleteDream = useCallback(async (dreamId: string) => {
     try {
       await dreamStorage.deleteDream(dreamId);
       setDreams((prev) => prev.filter((d) => d.id !== dreamId));
     } catch (error: any) {
       console.error('Error deleting dream:', error);
-      Alert.alert('Error', 'Failed to delete dream. Please try again.');
+      ErrorHandler.showAlert('Error', 'Failed to delete dream. Please try again.');
     }
-  };
+  }, []);
 
-  const handleClearAllData = async () => {
+  const handleClearAllData = useCallback(async () => {
     try {
       await dreamStorage.clearAllData();
       setDreams([]);
@@ -268,22 +252,18 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       setSleepSessions([...DEMO_SLEEP_DATA, ...DEMO_WHOOP_RECORDS]);
     } catch (error: any) {
       console.error('Error clearing all data:', error);
-      Alert.alert('Error', 'Failed to clear data. Please try again.');
+      ErrorHandler.showAlert('Error', 'Failed to clear data. Please try again.');
     }
-  };
+  }, []);
 
-  const getSleepSessionByDate = (date: string): (SleepSession | WhoopSleepRecord) | null => {
+  const getSleepSessionByDate = useCallback((date: string): (SleepSession | WhoopSleepRecord) | null => {
     const session = sleepSessions.find((candidate) => {
       if (isSleepSessionRecord(candidate)) {
         return candidate.date === date;
       }
 
-      try {
-        return new Date(candidate.start).toISOString().split('T')[0] === date;
-      } catch (error) {
-        console.warn('Unable to parse WHOOP sleep date', error);
-        return false;
-      }
+      const candidateDate = extractDateFromTimestamp(candidate.start);
+      return candidateDate === date;
     });
 
     if (!session) {
@@ -300,9 +280,9 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       console.warn('Unable to map WHOOP record to SleepSession', error);
       return session;
     }
-  };
+  }, [sleepSessions]);
 
-  const getDreamByDate = (date: string): Dream | null => {
+  const getDreamByDate = useCallback((date: string): Dream | null => {
     const dreamForDate = dreams.find((dream) => {
       const session = sleepSessions.find((s) => s.id === dream.sleepSessionId);
       if (!session) {
@@ -315,17 +295,13 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Handle WhoopSleepRecord (extract date from start timestamp)
-      try {
-        return new Date(session.start).toISOString().split('T')[0] === date;
-      } catch (error) {
-        console.warn('Unable to parse WHOOP sleep date', error);
-        return false;
-      }
+      const sessionDate = extractDateFromTimestamp(session.start);
+      return sessionDate === date;
     });
     return dreamForDate || null;
-  };
+  }, [dreams, sleepSessions]);
 
-  const fetchWhoopSleepData = async (startDate: string, endDate: string) => {
+  const fetchWhoopSleepData = useCallback(async (startDate: string, endDate: string) => {
     if (!whoopAccessToken) {
       console.log('No WHOOP access token available');
       return;
@@ -349,73 +325,65 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         setSleepSessions([]);
       }
     } catch (error: any) {
-      // Handle token expiration (401/403 errors)
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        console.log('WHOOP token expired or invalid, clearing token');
-        await handleSetWhoopAccessToken(null);
-        Alert.alert(
-          'WHOOP Connection Expired',
-          'Your WHOOP connection has expired. Please reconnect in the Profile tab.'
-        );
-        return;
-      }
-
-      // Handle 404 (no data available)
-      if (error.response?.status === 404) {
-        console.log('No WHOOP sleep data available for date range');
-        Alert.alert(
-          'No WHOOP Data Found',
-          'No sleep data was found in your WHOOP account for the last 30 days. Make sure you\'ve been wearing your WHOOP device during sleep.'
-        );
-        setSleepSessions([]);
-        return;
-      }
-
-      // Other errors - log but don't show alert
       console.error('Error fetching WHOOP sleep data:', error);
+      await ErrorHandler.handleApiError(error, {
+        context: 'fetch',
+        onTokenExpired: () => handleSetWhoopAccessToken(null),
+      });
+
+      // Clear sessions on 404
+      if (error.response?.status === 404) {
+        setSleepSessions([]);
+      }
     }
-  };
+  }, [whoopAccessToken, handleSetWhoopAccessToken]);
 
   // Fetch WHOOP data when token becomes available
   useEffect(() => {
     if (whoopAccessToken) {
       setDataSource('whoop');
-
-      // Fetch last 30 days of sleep data with proper ISO 8601 format
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
-
-      // Format as ISO 8601 with timestamp (WHOOP API v2 requirement)
-      const startISO = startDate.toISOString(); // e.g., "2025-09-18T12:34:56.789Z"
-      const endISO = endDate.toISOString(); // e.g., "2025-10-18T12:34:56.789Z"
-
+      const { startISO, endISO } = getDateRange(30);
       fetchWhoopSleepData(startISO, endISO);
     }
-  }, [whoopAccessToken]);
+  }, [whoopAccessToken, fetchWhoopSleepData]);
 
-  return (
-    <HealthDataContext.Provider
-      value={{
-        dataSource,
-        sleepSessions,
-        dreams,
-        whoopAccessToken,
-        setDataSource: handleSetDataSource,
-        setWhoopAccessToken: handleSetWhoopAccessToken,
-        fetchSleepData,
-        generateDream,
-        deleteDream: handleDeleteDream,
-        clearAllData: handleClearAllData,
-        isGeneratingDream,
-        getSleepSessionByDate,
-        getDreamByDate,
-        fetchWhoopSleepData,
-      }}
-    >
-      {children}
-    </HealthDataContext.Provider>
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo<HealthDataContextType>(
+    () => ({
+      dataSource,
+      sleepSessions,
+      dreams,
+      whoopAccessToken,
+      setDataSource: handleSetDataSource,
+      setWhoopAccessToken: handleSetWhoopAccessToken,
+      fetchSleepData,
+      generateDream,
+      deleteDream: handleDeleteDream,
+      clearAllData: handleClearAllData,
+      isGeneratingDream,
+      getSleepSessionByDate,
+      getDreamByDate,
+      fetchWhoopSleepData,
+    }),
+    [
+      dataSource,
+      sleepSessions,
+      dreams,
+      whoopAccessToken,
+      handleSetDataSource,
+      handleSetWhoopAccessToken,
+      fetchSleepData,
+      generateDream,
+      handleDeleteDream,
+      handleClearAllData,
+      isGeneratingDream,
+      getSleepSessionByDate,
+      getDreamByDate,
+      fetchWhoopSleepData,
+    ]
   );
+
+  return <HealthDataContext.Provider value={contextValue}>{children}</HealthDataContext.Provider>;
 };
 
 export const useHealthData = () => {

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
-import { Ionicons } from '@expo/vector-icons';
 import { CollectionView } from '../../components/CollectionView';
 import { SettingsCard } from '../../components/SettingsCard';
+import { SegmentedControl, SegmentItem } from '../../components/SegmentedControl';
 import { useHealthData } from '../../contexts/HealthDataContext';
 import Colors from '../../constants/Colors';
 
@@ -17,6 +17,12 @@ const API_BASE_URL = __DEV__ ? 'http://localhost:3000' : 'https://your-productio
 export const unstable_settings = {
   headerShown: false,
 };
+
+// Segmented control items (memoized outside component)
+const PROFILE_SEGMENT_ITEMS: SegmentItem[] = [
+  { icon: 'bulb' },
+  { icon: 'settings' },
+];
 
 export default function ProfileScreen() {
   const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken, clearAllData, dreams } = useHealthData();
@@ -45,11 +51,11 @@ export default function ProfileScreen() {
     };
   }, [setWhoopAccessToken, setDataSource]);
 
-  const handleAppleHealthPress = () => {
+  const handleAppleHealthPress = useCallback(() => {
     Alert.alert('Coming Soon', 'Apple Health integration will be available in a future update.');
-  };
+  }, []);
 
-  const handleWhoopPress = async () => {
+  const handleWhoopPress = useCallback(async () => {
     if (whoopAccessToken) {
       // Already connected, offer to disconnect
       Alert.alert(
@@ -101,13 +107,13 @@ export default function ProfileScreen() {
       console.error('OAuth error:', error);
       Alert.alert('Error', 'Failed to start WHOOP authentication.');
     }
-  };
+  }, [whoopAccessToken, setWhoopAccessToken, setDataSource, dataSource]);
 
-  const handleDemoPress = () => {
+  const handleDemoPress = useCallback(() => {
     setDataSource('demo');
-  };
+  }, [setDataSource]);
 
-  const handleClearAllData = () => {
+  const handleClearAllData = useCallback(() => {
     const dreamCount = dreams.length;
 
     Alert.alert(
@@ -129,7 +135,7 @@ export default function ProfileScreen() {
         },
       ]
     );
-  };
+  }, [dreams.length, clearAllData]);
 
   return (
     <View style={styles.container}>
@@ -137,43 +143,14 @@ export default function ProfileScreen() {
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My profile</Text>
-        
-        <View style={styles.segmentedControl}>
-          {/* Button 1: Collection */}
-          <TouchableOpacity
-            onPress={() => setSelectedTab(0)}
-            style={[
-              styles.segmentButton,
-              selectedTab === 0 && styles.segmentButtonActive,
-            ]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name="bulb"
-              size={20}
-              color={selectedTab === 0 ? Colors.background : Colors.text}
-            />
-          </TouchableOpacity>
 
-          {/* Separator */}
-          <View style={styles.separator} />
-
-          {/* Button 2: My Data */}
-          <TouchableOpacity
-            onPress={() => setSelectedTab(1)}
-            style={[
-              styles.segmentButton,
-              selectedTab === 1 && styles.segmentButtonActive,
-            ]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name="settings"
-              size={20}
-              color={selectedTab === 1 ? Colors.background : Colors.text}
-            />
-          </TouchableOpacity>
-        </View>
+        <SegmentedControl
+          items={PROFILE_SEGMENT_ITEMS}
+          selectedIndex={selectedTab}
+          onIndexChange={setSelectedTab}
+          width={120}
+          height={36}
+        />
       </View>
 
       <ScrollView
@@ -260,34 +237,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.25,
     lineHeight: 20,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(118, 118, 128, 0.12)',
-    borderRadius: 100,
-    height: 36,
-    width: 120,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  segmentButton: {
-    flex: 1,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 1000,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  segmentButtonActive: {
-    backgroundColor: Colors.primary,
-  },
-  separator: {
-    width: 1,
-    height: '100%',
-    backgroundColor: '#8E8E93',
-    opacity: 0.3,
   },
   scrollView: {
     flex: 1,
