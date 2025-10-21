@@ -11,7 +11,7 @@ interface DreamInsightsViewProps {
   onDelete?: (dreamId: string) => void;
 }
 
-export function DreamInsightsView({ dream }: DreamInsightsViewProps) {
+export const DreamInsightsView = React.memo<DreamInsightsViewProps>(({ dream }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnimation = useRef(new Animated.Value(0)).current;
 
@@ -210,7 +210,9 @@ export function DreamInsightsView({ dream }: DreamInsightsViewProps) {
       </View>
     </View>
   );
-}
+});
+
+DreamInsightsView.displayName = 'DreamInsightsView';
 
 const styles = StyleSheet.create({
   container: {

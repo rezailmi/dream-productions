@@ -216,13 +216,13 @@ const buildWhoopSections = (record: WhoopSleepRecord, mappedFallback?: SleepSess
   ];
 };
 
-export function SleepDataCard({
+export const SleepDataCard = React.memo<SleepDataCardProps>(({
   sleepSession,
   isWhoopData,
   showGenerateButton = false,
   onGenerate,
   isGenerating = false
-}: SleepDataCardProps) {
+}) => {
   const canGenerate = isSleepSessionRecord(sleepSession);
   const shouldRenderRaw = isWhoopData || !canGenerate;
 
@@ -475,7 +475,9 @@ export function SleepDataCard({
       )}
     </BlurView>
   );
-}
+});
+
+SleepDataCard.displayName = 'SleepDataCard';
 
 const styles = StyleSheet.create({
   container: {

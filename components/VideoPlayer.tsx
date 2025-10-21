@@ -20,7 +20,7 @@ interface VideoPlayerProps {
   autoPlay?: boolean;
 }
 
-export function VideoPlayer({ videoUrl, width = '100%', height = 250, autoPlay = false }: VideoPlayerProps) {
+export const VideoPlayer = React.memo<VideoPlayerProps>(({ videoUrl, width = '100%', height = 250, autoPlay = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -290,7 +290,9 @@ export function VideoPlayer({ videoUrl, width = '100%', height = 250, autoPlay =
       )}
     </TouchableOpacity>
   );
-}
+});
+
+VideoPlayer.displayName = 'VideoPlayer';
 
 const styles = StyleSheet.create({
   container: {

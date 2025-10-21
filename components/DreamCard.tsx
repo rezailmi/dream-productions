@@ -12,7 +12,7 @@ interface DreamCardProps {
   onDelete?: (dreamId: string) => void;
 }
 
-export function DreamCard({ dream, onPress, onDelete }: DreamCardProps) {
+export const DreamCard = React.memo<DreamCardProps>(({ dream, onPress, onDelete }) => {
   const isGenerating = dream.status === 'generating';
   const hasFailed = dream.status === 'failed';
 
@@ -119,7 +119,9 @@ export function DreamCard({ dream, onPress, onDelete }: DreamCardProps) {
       </BlurView>
     </TouchableOpacity>
   );
-}
+});
+
+DreamCard.displayName = 'DreamCard';
 
 const styles = StyleSheet.create({
   card: {
