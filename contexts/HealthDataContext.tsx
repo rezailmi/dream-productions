@@ -266,10 +266,11 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         return match;
       }
 
-      // Use timezone-aware date extraction for WHOOP records
-      const candidateDate = extractLocalDateFromTimestamp(candidate.start, candidate.timezone_offset);
+      // Use END timestamp for WHOOP date attribution (when you woke up)
+      // This matches WHOOP's cycle attribution: sleep is associated with the day you wake up
+      const candidateDate = extractLocalDateFromTimestamp(candidate.end, candidate.timezone_offset);
       const match = candidateDate === date;
-      console.log(`  🏃 WHOOP session: start=${candidate.start}, offset=${candidate.timezone_offset}, extracted=${candidateDate} ${match ? '✅' : '❌'}`);
+      console.log(`  🏃 WHOOP session: end=${candidate.end}, offset=${candidate.timezone_offset}, extracted=${candidateDate} ${match ? '✅' : '❌'}`);
       return match;
     });
 
@@ -303,8 +304,8 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         return session.date === date;
       }
 
-      // Handle WhoopSleepRecord (use timezone-aware date extraction)
-      const sessionDate = extractLocalDateFromTimestamp(session.start, session.timezone_offset);
+      // Handle WhoopSleepRecord (use END timestamp to match WHOOP's cycle attribution)
+      const sessionDate = extractLocalDateFromTimestamp(session.end, session.timezone_offset);
       return sessionDate === date;
     });
     return dreamForDate || null;
@@ -328,10 +329,10 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.records && response.records.length > 0) {
         setSleepSessions(response.records as WhoopSleepRecord[]);
-        console.log('📊 Sleep sessions updated with WHOOP data:');
+        console.log('📊 Sleep sessions updated with WHOOP data (using END timestamp for date attribution):');
         response.records.forEach((record: any) => {
-          const localDate = extractLocalDateFromTimestamp(record.start, record.timezone_offset);
-          console.log(`  - ${localDate}: start=${record.start}, offset=${record.timezone_offset}`);
+          const dateFromEnd = extractLocalDateFromTimestamp(record.end, record.timezone_offset);
+          console.log(`  - ${dateFromEnd}: start=${record.start}, end=${record.end}, offset=${record.timezone_offset}`);
         });
       } else {
         console.log('⚠️ No WHOOP sleep data available for date range');
