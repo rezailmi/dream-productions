@@ -44,7 +44,9 @@ export const DayCard = React.memo<DayCardProps>(({
   isVisible = false,
 }) => {
   const router = useRouter();
-  const [currentPage, setCurrentPage] = useState(0);
+  // Default to sleep data page (2) if no video, video page (0) if video exists
+  const hasVideo = dream?.status === 'complete' && dream?.videoUrl;
+  const [currentPage, setCurrentPage] = useState(hasVideo ? 0 : 2);
   const carouselRef = useRef<ScrollView>(null);
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -60,10 +62,25 @@ export const DayCard = React.memo<DayCardProps>(({
     });
   }, []);
 
-  // Auto-scroll to video page when a dream with video becomes available
+  // Set initial scroll position on mount
   React.useEffect(() => {
-    if (dream?.status === 'complete' && dream?.videoUrl && isVisible) {
-      scrollToPage(0); // Page 0 is the video page
+    const initialPage = hasVideo ? 0 : 2;
+    carouselRef.current?.scrollTo({
+      x: initialPage * SCREEN_WIDTH,
+      animated: false, // No animation on initial load
+    });
+  }, []); // Only run on mount
+
+  // Auto-navigate to appropriate page based on video availability
+  React.useEffect(() => {
+    if (!isVisible) return;
+
+    if (dream?.status === 'complete' && dream?.videoUrl) {
+      // Has video: go to video page
+      scrollToPage(0);
+    } else {
+      // No video: go to sleep data page
+      scrollToPage(2);
     }
   }, [dream?.videoUrl, dream?.status, isVisible, scrollToPage]);
 
