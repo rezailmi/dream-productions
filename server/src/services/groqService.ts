@@ -141,10 +141,19 @@ Generate a dream narrative with the following structure (use strict JSON format 
     {
       "sceneNumber": 1,
       "description": "Scene description (50-80 words)",
-      "prompt": "Optimized video generation prompt: cinematic, detailed, visual (30-50 words). Focus on visual elements, lighting, atmosphere, and action.",
-      "duration": 8
+      "prompt": "DETAILED video generation prompt (60-80 words) with SPECIFIC CINEMATIC ELEMENTS:
+        - SETTING: Exact location and environment (indoor/outdoor, specific place)
+        - CAMERA: First-person POV, 9:16 vertical framing, specify if static/moving/panning
+        - LIGHTING: Specific light source (sunlight/moonlight/lamp/neon/firelight), quality (harsh/soft/dim/bright), color temperature (warm/cool/neutral)
+        - COLORS: Dominant color palette (3-4 specific colors or tones)
+        - ATMOSPHERE: Weather, time of day, air quality (misty/clear/hazy/dusty)
+        - ACTION: What's happening in frame, any movement or stillness
+        - MOOD: Emotional tone that drives the visual aesthetic
+        - AUDIO CUES: Ambient sounds that should accompany (wind/water/voices/silence/music)
+        Be SPECIFIC and VISUAL. Avoid abstractions. Make it unique to THIS dream and THIS sleep data.",
+      "duration": 3
     },
-    // Generate 3-5 scenes total
+    // Generate 3-5 scenes total, each with uniquely detailed prompts
   ],
   "oneiromancy": {
     "summary": "2-3 sentence interpretation focused on emotional meaning and patterns",
@@ -156,13 +165,22 @@ Generate a dream narrative with the following structure (use strict JSON format 
   }
 }
 
-Rules:
+CRITICAL RULES FOR VIDEO PROMPTS:
+- Each scene prompt MUST be 60-80 words with ALL cinematic elements specified
+- Use CONCRETE, SPECIFIC details (not "beautiful lighting" but "golden afternoon sun through dusty window")
+- Reflect sleep quality in visuals: High quality = vivid colors/clarity, Low quality = muted/hazy/fragmented
+- Reflect disturbances: Many wake-ups = jarring transitions/intense visuals, Few = smooth/flowing imagery
+- Reflect REM duration: Long REM = surreal/fantastical elements, Short REM = realistic/grounded imagery
+- Vary lighting, colors, settings across scenes based on dream progression
+- Make each prompt UNIQUE - no generic templates
+- FIRST SCENE is especially important as it will be used for video generation
+
+General Rules:
 - Make it VIVID and VISUAL (describe what you SEE, HEAR, FEEL)
 - Use present tense, first-person perspective
-- Include surreal, dreamlike elements
+- Include surreal, dreamlike elements appropriate to sleep quality
 - Each scene should be visually distinct and cinematic
-- Video prompts should be clear, actionable descriptions for AI video generation
-- Incorporate the sleep data context (disturbances = scene changes, high REM = elaborate imagery)
+- Incorporate the sleep data context throughout
 - Return strict JSON without backticks or extra prose
 
 Generate the JSON response now:`;
@@ -195,7 +213,7 @@ Generate the JSON response now:`;
           sceneNumber: index + 1,
           description: scene.description,
           prompt: scene.prompt,
-          duration: scene.duration || 8,
+          duration: scene.duration || 3, // Default to 3s (optimized duration)
         })),
         oneiromancy: parsed.oneiromancy ? {
           summary: parsed.oneiromancy.summary || '',
@@ -220,8 +238,8 @@ Generate the JSON response now:`;
           {
             sceneNumber: 1,
             description: response.substring(0, 200),
-            prompt: `Cinematic dream sequence, surreal atmosphere, soft lighting, ethereal mood`,
-            duration: 8,
+            prompt: `First-person POV, 9:16 vertical format. Cinematic dream sequence with surreal atmosphere, soft ambient lighting, ethereal mood. Calm movement through dreamlike space. Muted colors with hints of deep blues and purples. Quiet ambient sounds.`,
+            duration: 3, // Optimized 3s duration
           },
         ],
         oneiromancy: {
