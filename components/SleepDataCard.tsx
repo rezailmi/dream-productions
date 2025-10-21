@@ -303,12 +303,12 @@ export const SleepDataCard = React.memo<SleepDataCardProps>(({
           >
             {isGenerating ? (
               <>
-                <ActivityIndicator size="small" color={Colors.text} />
+                <ActivityIndicator size="small" color="#000000" />
                 <Text style={styles.generateButtonText}>Generating...</Text>
               </>
             ) : (
               <>
-                <Ionicons name="sparkles" size={18} color={Colors.text} />
+                <Ionicons name="sparkles" size={18} color="#000000" />
                 <Text style={styles.generateButtonText}>Generate Dream</Text>
               </>
             )}
@@ -462,12 +462,12 @@ export const SleepDataCard = React.memo<SleepDataCardProps>(({
         >
           {isGenerating ? (
             <>
-              <ActivityIndicator size="small" color={Colors.text} />
+              <ActivityIndicator size="small" color="#000000" />
               <Text style={styles.generateButtonText}>Generating...</Text>
             </>
           ) : (
             <>
-              <Ionicons name="sparkles" size={18} color={Colors.text} />
+              <Ionicons name="sparkles" size={18} color="#000000" />
               <Text style={styles.generateButtonText}>Generate</Text>
             </>
           )}
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   generateButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.text,
+    color: '#000000',
   },
   generateButtonTextMuted: {
     fontSize: 13,
