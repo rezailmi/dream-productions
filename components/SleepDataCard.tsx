@@ -247,6 +247,9 @@ export const SleepDataCard = React.memo<SleepDataCardProps>(({
   const canGenerate = isSleepSessionRecord(sleepSession);
   const shouldRenderRaw = isWhoopData || !canGenerate;
 
+  // Check if this is a nap (WHOOP records only)
+  const isNap = !isSleepSessionRecord(sleepSession) && (sleepSession as WhoopSleepRecord).nap === true;
+
   if (shouldRenderRaw) {
     const sections = useMemo(
       () => buildWhoopSections(sleepSession as WhoopSleepRecord, canGenerate ? (sleepSession as SleepSession) : undefined),
@@ -281,8 +284,8 @@ export const SleepDataCard = React.memo<SleepDataCardProps>(({
     return (
       <BlurView intensity={10} tint="dark" style={styles.containerRaw}>
         <View style={styles.headerRow}>
-          <Ionicons name="fitness" size={16} color={Colors.primary} />
-          <Text style={styles.rawTitle}>WHOOP Sleep Entry</Text>
+          <Ionicons name={isNap ? "bed" : "fitness"} size={16} color={isNap ? Colors.accent : Colors.primary} />
+          <Text style={styles.rawTitle}>{isNap ? "WHOOP Nap" : "WHOOP Sleep Entry"}</Text>
         </View>
         <ScrollView style={styles.rawScroll} showsVerticalScrollIndicator={false}>
           {visibleSections.map((section) => (
@@ -315,7 +318,8 @@ export const SleepDataCard = React.memo<SleepDataCardProps>(({
             </Text>
           </TouchableOpacity>
         </ScrollView>
-        {showGenerateButton && (
+        {/* Hide Generate button for naps - they're too short for meaningful dreams */}
+        {showGenerateButton && !isNap && (
           <TouchableOpacity
             style={[styles.generateButton, isGenerating && styles.generateButtonDisabled]}
             onPress={onGenerate}
