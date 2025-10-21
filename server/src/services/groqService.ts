@@ -6,19 +6,21 @@ export class GroqService {
 
   constructor() {
     this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY, // Using OpenAI directly for better creative quality
+      baseURL: 'https://api.groq.com/openai/v1',
+      apiKey: process.env.GROQ_API_KEY,
     });
   }
 
   /**
-   * Generate dream narrative from sleep data using OpenAI GPT-4o-mini
+   * Generate dream narrative from sleep data using OpenAI GPT-OSS-120B on Groq
+   * This uses OpenAI's 120B parameter open model running on Groq's fast infrastructure
    */
   async generateDreamNarrative(sleepData: AnySleepData): Promise<DreamNarrative> {
     try {
       const prompt = this.buildPrompt(sleepData);
 
       const completion = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini', // Fast, creative, cost-effective OpenAI model
+        model: 'openai/gpt-oss-120b', // OpenAI's 120B open model on Groq (500+ tokens/sec)
         messages: [
           {
             role: 'system',
@@ -36,13 +38,13 @@ export class GroqService {
 
       const response = completion.choices[0]?.message?.content;
       if (!response) {
-        throw new Error('No response from OpenAI API');
+        throw new Error('No response from Groq API');
       }
 
       // Parse the structured response
       return this.parseNarrativeResponse(response);
     } catch (error: any) {
-      console.error('OpenAI API Error:', error);
+      console.error('Groq API Error:', error);
       throw new Error(`Failed to generate dream narrative: ${error.message}`);
     }
   }

@@ -40,7 +40,7 @@ export class DreamGenerationService {
       console.log('\n┌─────────────────────────────────────┐');
       console.log('│  STEP 1: NARRATIVE GENERATION       │');
       console.log('└─────────────────────────────────────┘');
-      console.log('🧠 Using OpenAI GPT-4o-mini to generate dream narrative...');
+      console.log('🧠 Using Groq (OpenAI GPT-OSS-120B) to generate dream narrative...');
       console.log('Input: Sleep session', sleepData.id);
 
       const narrativeStartTime = Date.now();
