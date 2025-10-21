@@ -60,6 +60,13 @@ export const DayCard = React.memo<DayCardProps>(({
     });
   }, []);
 
+  // Auto-scroll to video page when a dream with video becomes available
+  React.useEffect(() => {
+    if (dream?.status === 'complete' && dream?.videoUrl && isVisible) {
+      scrollToPage(0); // Page 0 is the video page
+    }
+  }, [dream?.videoUrl, dream?.status, isVisible, scrollToPage]);
+
   const getEmptyVideoMessage = useCallback(() => {
     if (dream?.status === 'generating') return 'Your dream is being generated...';
     if (dream?.status === 'failed') return 'Dream generation failed';
