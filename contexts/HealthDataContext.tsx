@@ -259,26 +259,60 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const getSleepSessionByDate = useCallback((date: string): (SleepSession | WhoopSleepRecord) | null => {
     console.log(`🔍 Looking up sleep session for date: ${date}`);
 
-    const session = sleepSessions.find((candidate) => {
+    // Find ALL sessions matching this date (may have both sleep + naps)
+    const matchingSessions = sleepSessions.filter((candidate) => {
       if (isSleepSessionRecord(candidate)) {
         const match = candidate.date === date;
-        console.log(`  📅 Demo session: ${candidate.date} ${match ? '✅' : '❌'}`);
+        if (match) console.log(`  📅 Demo session: ${candidate.date} ✅`);
         return match;
       }
 
       // Use END timestamp for WHOOP date attribution (when you woke up)
-      // This matches WHOOP's cycle attribution: sleep is associated with the day you wake up
       const candidateDate = extractLocalDateFromTimestamp(candidate.end, candidate.timezone_offset);
       const match = candidateDate === date;
-      console.log(`  🏃 WHOOP session: end=${candidate.end}, offset=${candidate.timezone_offset}, extracted=${candidateDate} ${match ? '✅' : '❌'}`);
+      if (match) {
+        const isNap = candidate.nap === true;
+        console.log(`  🏃 WHOOP ${isNap ? 'nap' : 'sleep'}: end=${candidate.end}, offset=${candidate.timezone_offset}, extracted=${candidateDate} ✅`);
+      }
       return match;
     });
 
-    console.log(`  Result: ${session ? '✅ Found' : '❌ Not found'}`);
-
-    if (!session) {
+    // Handle multiple records per day (e.g., overnight sleep + naps)
+    if (matchingSessions.length === 0) {
+      console.log(`  Result: ❌ Not found`);
       return null;
     }
+
+    if (matchingSessions.length > 1) {
+      console.log(`  ⚠️ Found ${matchingSessions.length} records for ${date}`);
+
+      // Prioritize overnight sleep (non-nap) over naps
+      const overnightSleep = matchingSessions.find((s) => {
+        if (isSleepSessionRecord(s)) return true; // Demo data is always overnight sleep
+        return (s as WhoopSleepRecord).nap !== true;
+      });
+
+      if (overnightSleep) {
+        console.log(`  ✅ Prioritizing overnight sleep over ${matchingSessions.length - 1} nap(s)`);
+        return overnightSleep;
+      }
+
+      // All records are naps - return the longest one
+      console.log(`  ✅ All records are naps, returning longest`);
+      const sorted = [...matchingSessions].sort((a, b) => {
+        const durationA = isSleepSessionRecord(a) ? a.totalDurationMinutes :
+          ((new Date((a as WhoopSleepRecord).end).getTime() - new Date((a as WhoopSleepRecord).start).getTime()) / 60000);
+        const durationB = isSleepSessionRecord(b) ? b.totalDurationMinutes :
+          ((new Date((b as WhoopSleepRecord).end).getTime() - new Date((b as WhoopSleepRecord).start).getTime()) / 60000);
+        return durationB - durationA;
+      });
+      return sorted[0];
+    }
+
+    console.log(`  Result: ✅ Found`);
+
+    // Single session found
+    const session = matchingSessions[0];
 
     if (isSleepSessionRecord(session)) {
       return session;
