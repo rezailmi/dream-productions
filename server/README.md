@@ -1,14 +1,14 @@
 # Dream Machine Backend Server
 
-Backend API server for Dream Machine app that handles WHOOP OAuth, dream narrative generation via Groq, and video generation via Google Veo.
+Backend API server for Dream Machine app that handles WHOOP OAuth, dream narrative generation via OpenAI, and video generation via Fal.ai Sora 2.
 
 ## Prerequisites
 
 - Node.js 18+
 - npm or yarn
 - WHOOP Developer Account
-- Groq API Key
-- Google Cloud Project with Veo API enabled
+- OpenAI API Key (for GPT-4o-mini)
+- Fal.ai API Key (for Sora 2 video generation)
 
 ## Setup
 
@@ -35,15 +35,10 @@ WHOOP_CLIENT_ID=your_client_id
 WHOOP_CLIENT_SECRET=your_client_secret
 WHOOP_CALLBACK_URL=http://localhost:3000/auth/whoop/callback
 
-# WHOOP API Configuration (Optional)
-# Default: https://api.whoop.com/developer/v2
-# Only set if you need to use a different API version
-# WHOOP_API_BASE_URL=https://api.whoop.com/developer/v2
+# OpenAI API (for dream narrative generation with GPT-4o-mini)
+OPENAI_API_KEY=your_openai_api_key
 
-# Groq API
-GROQ_API_KEY=your_groq_api_key
-
-# Fal.ai (Video Generation)
+# Fal.ai (for Sora 2 video generation)
 FAL_API_KEY=your_fal_api_key
 
 # Server

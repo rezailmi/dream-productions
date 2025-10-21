@@ -6,20 +6,19 @@ export class GroqService {
 
   constructor() {
     this.client = new OpenAI({
-      baseURL: 'https://api.groq.com/openai/v1',
-      apiKey: process.env.GROQ_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY, // Using OpenAI directly for better creative quality
     });
   }
 
   /**
-   * Generate dream narrative from sleep data
+   * Generate dream narrative from sleep data using OpenAI GPT-4o-mini
    */
   async generateDreamNarrative(sleepData: AnySleepData): Promise<DreamNarrative> {
     try {
       const prompt = this.buildPrompt(sleepData);
 
       const completion = await this.client.chat.completions.create({
-        model: 'llama-3.3-70b-versatile', // High-quality model for creative tasks
+        model: 'gpt-4o-mini', // Fast, creative, cost-effective OpenAI model
         messages: [
           {
             role: 'system',
@@ -32,17 +31,18 @@ export class GroqService {
         ],
         temperature: 1.2, // Higher creativity
         max_tokens: 2000,
+        response_format: { type: "json_object" }, // Ensure JSON output
       });
 
       const response = completion.choices[0]?.message?.content;
       if (!response) {
-        throw new Error('No response from Groq API');
+        throw new Error('No response from OpenAI API');
       }
 
       // Parse the structured response
       return this.parseNarrativeResponse(response);
     } catch (error: any) {
-      console.error('Groq API Error:', error);
+      console.error('OpenAI API Error:', error);
       throw new Error(`Failed to generate dream narrative: ${error.message}`);
     }
   }
@@ -151,7 +151,7 @@ Generate a dream narrative with the following structure (use strict JSON format 
         - MOOD: Emotional tone that drives the visual aesthetic
         - AUDIO CUES: Ambient sounds that should accompany (wind/water/voices/silence/music)
         Be SPECIFIC and VISUAL. Avoid abstractions. Make it unique to THIS dream and THIS sleep data.",
-      "duration": 3
+      "duration": 4
     },
     // Generate 3-5 scenes total, each with uniquely detailed prompts
   ],
@@ -213,7 +213,7 @@ Generate the JSON response now:`;
           sceneNumber: index + 1,
           description: scene.description,
           prompt: scene.prompt,
-          duration: scene.duration || 3, // Default to 3s (optimized duration)
+          duration: scene.duration || 4, // Default to 4s (Sora minimum)
         })),
         oneiromancy: parsed.oneiromancy ? {
           summary: parsed.oneiromancy.summary || '',
@@ -239,7 +239,7 @@ Generate the JSON response now:`;
             sceneNumber: 1,
             description: response.substring(0, 200),
             prompt: `First-person POV, 9:16 vertical format. Cinematic dream sequence with surreal atmosphere, soft ambient lighting, ethereal mood. Calm movement through dreamlike space. Muted colors with hints of deep blues and purples. Quiet ambient sounds.`,
-            duration: 3, // Optimized 3s duration
+            duration: 4, // Sora minimum duration
           },
         ],
         oneiromancy: {

@@ -40,7 +40,7 @@ export class DreamGenerationService {
       console.log('\n┌─────────────────────────────────────┐');
       console.log('│  STEP 1: NARRATIVE GENERATION       │');
       console.log('└─────────────────────────────────────┘');
-      console.log('🧠 Using Groq AI to generate dream narrative...');
+      console.log('🧠 Using OpenAI GPT-4o-mini to generate dream narrative...');
       console.log('Input: Sleep session', sleepData.id);
 
       const narrativeStartTime = Date.now();
@@ -66,12 +66,12 @@ export class DreamGenerationService {
 
         const videoPrompt = this.enhancePromptForVeo(narrative, sleepData);
         console.log('Prompt preview:', videoPrompt.substring(0, 100) + '...');
-        console.log('Settings: 3s duration (optimized), 720p, 9:16 aspect ratio, with AI audio');
+        console.log('Settings: 4s duration (Sora minimum), 720p, 9:16 aspect ratio, with AI audio');
 
         const videoRequest: VeoVideoRequest = {
           prompt: videoPrompt,
           aspectRatio: '9:16',
-          durationSeconds: 3, // Reduced from 4s for faster generation & lower cost
+          durationSeconds: 4, // Sora 2 minimum supported duration
           resolution: '720p',
           generateAudio: true,
         };
@@ -197,7 +197,7 @@ export class DreamGenerationService {
 TECHNICAL SPECS:
 - Format: 9:16 vertical (mobile optimized)
 - Perspective: First-person POV throughout
-- Duration: 3 seconds
+- Duration: 4 seconds (full Sora capability)
 - Style: Cinematic, dream-like, emotionally resonant
 - Lighting: Natural to surreal based on dream mood
 - Movement: Smooth, deliberate camera motion or static as appropriate
