@@ -25,8 +25,9 @@ const PROFILE_SEGMENT_ITEMS: SegmentItem[] = [
 ];
 
 export default function ProfileScreen() {
-  const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken, clearAllData, dreams } = useHealthData();
+  const { dataSource, setDataSource, whoopAccessToken, setWhoopAccessToken, clearAllData, dreams, fetchWhoopSleepData } = useHealthData();
   const [selectedTab, setSelectedTab] = useState(0); // 0 = Collection, 1 = My Data
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     // Handle OAuth callback via deep linking
@@ -113,6 +114,31 @@ export default function ProfileScreen() {
     setDataSource('demo');
   }, [setDataSource]);
 
+  const handleRefreshWhoopData = useCallback(async () => {
+    if (!whoopAccessToken) {
+      Alert.alert('Not Connected', 'Please connect your WHOOP account first.');
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+
+      // Fetch last 30 days of WHOOP data
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      await fetchWhoopSleepData(startDate.toISOString(), endDate.toISOString());
+
+      Alert.alert('Success', 'WHOOP data refreshed successfully!');
+    } catch (error: any) {
+      console.error('Refresh error:', error);
+      Alert.alert('Error', 'Failed to refresh WHOOP data. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [whoopAccessToken, fetchWhoopSleepData]);
+
   const handleClearAllData = useCallback(() => {
     const dreamCount = dreams.length;
 
@@ -195,6 +221,17 @@ export default function ProfileScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Data Management</Text>
+
+              {whoopAccessToken && (
+                <SettingsCard
+                  title="Refresh WHOOP Data"
+                  description={isRefreshing ? "Fetching latest sleep data..." : "Sync latest sleep sessions from WHOOP"}
+                  icon="refresh"
+                  status={isRefreshing ? "active" : "inactive"}
+                  onPress={handleRefreshWhoopData}
+                  isActive={false}
+                />
+              )}
 
               <SettingsCard
                 title="Clear All Data"
