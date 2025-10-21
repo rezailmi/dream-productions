@@ -103,6 +103,27 @@ const buildWhoopSections = (record: WhoopSleepRecord, mappedFallback?: SleepSess
     ? { date: mappedFallback.date, start: mappedFallback.startTime, end: mappedFallback.endTime }
     : undefined;
 
+  // Calculate end date: if endTime < startTime, sleep crossed midnight (add 1 day)
+  const calculateEndDate = (startDate: string, startTime: string, endTime: string): string => {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    // If end is earlier than start, sleep crossed midnight
+    if (endMinutes < startMinutes) {
+      const date = new Date(startDate + 'T00:00:00');
+      date.setDate(date.getDate() + 1);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return startDate;
+  };
+
+  const endDate = mappedParts ? calculateEndDate(mappedParts.date, mappedParts.start, mappedParts.end) : undefined;
+
   const startDisplay = formatDateTimeSafe(
     record.start,
     mappedParts ? { date: mappedParts.date, time: mappedParts.start } : undefined,
@@ -110,7 +131,7 @@ const buildWhoopSections = (record: WhoopSleepRecord, mappedFallback?: SleepSess
   );
   const endDisplay = formatDateTimeSafe(
     record.end,
-    mappedParts ? { date: mappedParts.date, time: mappedParts.end } : undefined,
+    endDate && mappedParts ? { date: endDate, time: mappedParts.end } : undefined,
     record.end,
   );
   const recordedDisplay = formatDateTimeSafe(
