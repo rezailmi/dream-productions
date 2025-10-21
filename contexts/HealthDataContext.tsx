@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useMe
 import { DataSource, SleepSession, Dream, HealthDataContextType, WhoopSleepRecord } from '../constants/Types';
 import { DEMO_SLEEP_DATA, DEMO_WHOOP_RECORDS } from '../services/demoData';
 import { mapWhoopRecordToSleepSession } from '../utils/whoopSleepMapper';
-import { extractDateFromTimestamp, getDateRange } from '../utils/dateUtils';
+import { extractDateFromTimestamp, extractLocalDateFromTimestamp, getDateRange } from '../utils/dateUtils';
 import { ErrorHandler } from '../utils/errorHandler';
 import apiClient from '../services/apiClient';
 import dreamStorage from '../services/dreamStorage';
@@ -262,7 +262,8 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         return candidate.date === date;
       }
 
-      const candidateDate = extractDateFromTimestamp(candidate.start);
+      // Use timezone-aware date extraction for WHOOP records
+      const candidateDate = extractLocalDateFromTimestamp(candidate.start, candidate.timezone_offset);
       return candidateDate === date;
     });
 
@@ -294,8 +295,8 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         return session.date === date;
       }
 
-      // Handle WhoopSleepRecord (extract date from start timestamp)
-      const sessionDate = extractDateFromTimestamp(session.start);
+      // Handle WhoopSleepRecord (use timezone-aware date extraction)
+      const sessionDate = extractLocalDateFromTimestamp(session.start, session.timezone_offset);
       return sessionDate === date;
     });
     return dreamForDate || null;
