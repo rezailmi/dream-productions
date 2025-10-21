@@ -184,7 +184,7 @@ Generate a dream narrative with the following structure (use strict JSON format 
     "themes": ["theme1", "theme2", "theme3"],
     "symbols": ["primary symbol(s) observed"],
     "advice": "short, compassionate advice based on the dream",
-    "category": "Wealth|Love|Career|Danger|Health|Family|Animals|Water|Food|Travel|Spiritual|Death",
+    "category": "Wealth|Love|Career|Danger|Health|Family|Animals|Water|Food|Travel|Spiritual|Transformation",
     "confidence": 0.0
   }
 }

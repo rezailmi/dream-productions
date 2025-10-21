@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { SleepSession, Dream, WhoopSleepRecord } from '../constants/Types';
 import { SleepDataCard } from './SleepDataCard';
 import { DreamVideoView } from './DreamVideoView';
@@ -42,6 +43,7 @@ export const DayCard = React.memo<DayCardProps>(({
   isGenerating = false,
   isVisible = false,
 }) => {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(0);
   const carouselRef = useRef<ScrollView>(null);
 
@@ -166,7 +168,7 @@ export const DayCard = React.memo<DayCardProps>(({
         subtitle="Connect your WHOOP account to see real sleep data and generate dreams"
         actionLabel="Go to Profile"
         onAction={() => {
-          // Navigation will be handled by parent
+          router.push('/(tabs)/profile');
         }}
       />
     );
