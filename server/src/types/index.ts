@@ -127,7 +127,7 @@ export interface Oneiromancy {
 export interface VeoVideoRequest {
   prompt: string;
   aspectRatio: '16:9' | '9:16';
-  durationSeconds: 4 | 6 | 8;
+  durationSeconds: 4 | 6 | 8; // Sora 2 minimum is 4 seconds
   resolution: '720p' | '1080p';
   generateAudio: boolean;
 }

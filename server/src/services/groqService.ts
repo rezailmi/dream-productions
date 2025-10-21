@@ -12,14 +12,19 @@ export class GroqService {
   }
 
   /**
-   * Generate dream narrative from sleep data
+   * Generate dream narrative from sleep data using OpenAI GPT-OSS-120B on Groq
+   * This uses OpenAI's 120B parameter open model running on Groq's fast infrastructure
    */
   async generateDreamNarrative(sleepData: AnySleepData): Promise<DreamNarrative> {
     try {
       const prompt = this.buildPrompt(sleepData);
 
+      console.log('📡 Sending request to Groq API...');
+      console.log('   Model: openai/gpt-oss-120b');
+      console.log('   Max tokens: 12000 (high limit for reasoning model)');
+
       const completion = await this.client.chat.completions.create({
-        model: 'llama-3.3-70b-versatile', // High-quality model for creative tasks
+        model: 'openai/gpt-oss-120b', // OpenAI's 120B open model on Groq (500+ tokens/sec)
         messages: [
           {
             role: 'system',
@@ -31,18 +36,37 @@ export class GroqService {
           },
         ],
         temperature: 1.2, // Higher creativity
-        max_tokens: 2000,
+        max_tokens: 12000, // High limit to accommodate extensive reasoning + actual JSON output
+        response_format: { type: "json_object" }, // Ensure JSON output
       });
+
+      console.log('✅ Received response from Groq');
+      console.log('   Completion ID:', completion.id);
+      console.log('   Model used:', completion.model);
+      console.log('   Choices count:', completion.choices?.length);
 
       const response = completion.choices[0]?.message?.content;
       if (!response) {
+        console.error('❌ No content in response!');
+        console.error('   Full completion object:', JSON.stringify(completion, null, 2));
         throw new Error('No response from Groq API');
       }
+
+      console.log('✅ Got response content, length:', response.length);
 
       // Parse the structured response
       return this.parseNarrativeResponse(response);
     } catch (error: any) {
-      console.error('Groq API Error:', error);
+      console.error('❌ Groq API Error Details:');
+      console.error('   Error type:', error.constructor.name);
+      console.error('   Error message:', error.message);
+      console.error('   Error status:', error.status);
+      console.error('   Error code:', error.code);
+      if (error.response) {
+        console.error('   Response status:', error.response.status);
+        console.error('   Response data:', JSON.stringify(error.response.data, null, 2));
+      }
+      console.error('   Full error:', JSON.stringify(error, null, 2));
       throw new Error(`Failed to generate dream narrative: ${error.message}`);
     }
   }
@@ -141,10 +165,19 @@ Generate a dream narrative with the following structure (use strict JSON format 
     {
       "sceneNumber": 1,
       "description": "Scene description (50-80 words)",
-      "prompt": "Optimized video generation prompt: cinematic, detailed, visual (30-50 words). Focus on visual elements, lighting, atmosphere, and action.",
-      "duration": 8
+      "prompt": "DETAILED video generation prompt (60-80 words) with SPECIFIC CINEMATIC ELEMENTS:
+        - SETTING: Exact location and environment (indoor/outdoor, specific place)
+        - CAMERA: First-person POV, 9:16 vertical framing, specify if static/moving/panning
+        - LIGHTING: Specific light source (sunlight/moonlight/lamp/neon/firelight), quality (harsh/soft/dim/bright), color temperature (warm/cool/neutral)
+        - COLORS: Dominant color palette (3-4 specific colors or tones)
+        - ATMOSPHERE: Weather, time of day, air quality (misty/clear/hazy/dusty)
+        - ACTION: What's happening in frame, any movement or stillness
+        - MOOD: Emotional tone that drives the visual aesthetic
+        - AUDIO CUES: Ambient sounds that should accompany (wind/water/voices/silence/music)
+        Be SPECIFIC and VISUAL. Avoid abstractions. Make it unique to THIS dream and THIS sleep data.",
+      "duration": 4
     },
-    // Generate 3-5 scenes total
+    // Generate 3-5 scenes total, each with uniquely detailed prompts
   ],
   "oneiromancy": {
     "summary": "2-3 sentence interpretation focused on emotional meaning and patterns",
@@ -156,13 +189,22 @@ Generate a dream narrative with the following structure (use strict JSON format 
   }
 }
 
-Rules:
+CRITICAL RULES FOR VIDEO PROMPTS:
+- Each scene prompt MUST be 60-80 words with ALL cinematic elements specified
+- Use CONCRETE, SPECIFIC details (not "beautiful lighting" but "golden afternoon sun through dusty window")
+- Reflect sleep quality in visuals: High quality = vivid colors/clarity, Low quality = muted/hazy/fragmented
+- Reflect disturbances: Many wake-ups = jarring transitions/intense visuals, Few = smooth/flowing imagery
+- Reflect REM duration: Long REM = surreal/fantastical elements, Short REM = realistic/grounded imagery
+- Vary lighting, colors, settings across scenes based on dream progression
+- Make each prompt UNIQUE - no generic templates
+- FIRST SCENE is especially important as it will be used for video generation
+
+General Rules:
 - Make it VIVID and VISUAL (describe what you SEE, HEAR, FEEL)
 - Use present tense, first-person perspective
-- Include surreal, dreamlike elements
+- Include surreal, dreamlike elements appropriate to sleep quality
 - Each scene should be visually distinct and cinematic
-- Video prompts should be clear, actionable descriptions for AI video generation
-- Incorporate the sleep data context (disturbances = scene changes, high REM = elaborate imagery)
+- Incorporate the sleep data context throughout
 - Return strict JSON without backticks or extra prose
 
 Generate the JSON response now:`;
@@ -195,7 +237,7 @@ Generate the JSON response now:`;
           sceneNumber: index + 1,
           description: scene.description,
           prompt: scene.prompt,
-          duration: scene.duration || 8,
+          duration: scene.duration || 4, // Default to 4s (Sora minimum)
         })),
         oneiromancy: parsed.oneiromancy ? {
           summary: parsed.oneiromancy.summary || '',
@@ -220,8 +262,8 @@ Generate the JSON response now:`;
           {
             sceneNumber: 1,
             description: response.substring(0, 200),
-            prompt: `Cinematic dream sequence, surreal atmosphere, soft lighting, ethereal mood`,
-            duration: 8,
+            prompt: `First-person POV, 9:16 vertical format. Cinematic dream sequence with surreal atmosphere, soft ambient lighting, ethereal mood. Calm movement through dreamlike space. Muted colors with hints of deep blues and purples. Quiet ambient sounds.`,
+            duration: 4, // Sora minimum duration
           },
         ],
         oneiromancy: {

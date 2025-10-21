@@ -109,13 +109,6 @@ export interface HealthDataContextType {
   fetchWhoopSleepData: (startDate: string, endDate: string) => Promise<void>;
 }
 
-export interface DayCardData {
-  date: string;
-  dateLabel: string;
-  sleepSession: SleepSession | WhoopSleepRecord | null;
-  dream: Dream | null;
-  isToday: boolean;
-}
 
 export interface Dream {
   id: string;

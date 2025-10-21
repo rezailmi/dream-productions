@@ -6,6 +6,74 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Dream Machine is an AI-powered dream journal app built with Expo/React Native that reconstructs sleep memories from biometric data (Apple Health, Whoop). This is an iOS-first MVP focusing on native design patterns and glass morphism aesthetics.
 
+## Core Development Principles
+
+### DRY (Don't Repeat Yourself)
+
+**DRY is a fundamental principle for this codebase.** Code duplication should be eliminated whenever possible by extracting common patterns into reusable components, utilities, and hooks.
+
+**When to refactor for DRY:**
+- When you find yourself copying and pasting code
+- When similar UI patterns appear in multiple places
+- When the same logic is duplicated across components
+- When error handling or data processing is repeated
+- When constants or configuration values are hardcoded in multiple files
+
+**How to apply DRY:**
+
+1. **Shared Components**
+   - Extract duplicate UI patterns into reusable components (e.g., `SegmentedControl`, `EmptyState`)
+   - Components should be generic and configurable via props
+   - Place in `components/` directory
+
+2. **Utility Functions**
+   - Extract duplicate logic into utility functions
+   - Group related utilities in files (e.g., `dateUtils.ts`, `errorHandler.ts`)
+   - Place in `utils/` directory
+
+3. **Constants**
+   - Replace magic strings/numbers with named constants
+   - Use const assertions for type safety: `as const`
+   - Place in `constants/` directory (e.g., `StatusConstants.ts`)
+
+4. **Custom Hooks**
+   - Extract duplicate React logic into custom hooks
+   - Follow naming convention: `use[Name]` (e.g., `useHealthData`)
+   - Place in `hooks/` directory
+
+**Example: Before DRY**
+```tsx
+// ❌ Duplicated in multiple files
+<View style={styles.segmentedControl}>
+  <TouchableOpacity onPress={() => setTab(0)}>
+    <Ionicons name="videocam" size={20} />
+  </TouchableOpacity>
+  <View style={styles.separator} />
+  <TouchableOpacity onPress={() => setTab(1)}>
+    <Ionicons name="bulb" size={20} />
+  </TouchableOpacity>
+</View>
+```
+
+**Example: After DRY**
+```tsx
+// ✅ Reusable component
+<SegmentedControl
+  items={SEGMENT_ITEMS}
+  selectedIndex={currentTab}
+  onIndexChange={setTab}
+/>
+```
+
+**Benefits of DRY:**
+- ✅ Single source of truth - fix bugs in one place
+- ✅ Easier to maintain and update
+- ✅ Improved code readability
+- ✅ Better performance (when combined with memoization)
+- ✅ Reduced bundle size
+
+**See also:** `plan/DRY_AND_PERFORMANCE_IMPROVEMENTS.md` for comprehensive DRY refactoring examples.
+
 ## Common Commands
 
 ```bash
@@ -76,7 +144,12 @@ All types defined in `constants/Types.ts`:
 Reusable components in `components/`:
 
 - **SettingsCard** - Glass-morphic card for settings options with status badges
-- **ConnectionButton** - Button for health data source connections
+- **SegmentedControl** - Reusable iOS-style segmented control component
+- **EmptyState** - Reusable empty state component with icon and optional action button
+- **DreamCard** - Card component for displaying generated dreams
+- **VideoPlayer** - Video playback component with playback controls
+- **DreamInsightsView** - Flippable card view for oneiromancy predictions
+- **SleepDataCard** - Card component for displaying sleep metrics
 
 ### Design System
 
@@ -104,6 +177,53 @@ Glass morphism achieved via `expo-blur` BlurView component on iOS.
 - Use SafeAreaView for all screens
 - Platform-specific code via `Platform.select()` or `Platform.OS === 'ios'`
 - Follow iOS Human Interface Guidelines
+
+### Performance Best Practices
+
+**Always consider performance when writing React components:**
+
+1. **Use React.memo for presentational components**
+   - Wrap components that receive the same props frequently
+   - Add `displayName` for better debugging
+   ```tsx
+   export const MyComponent = React.memo<Props>(({ ... }) => {
+     // component code
+   });
+   MyComponent.displayName = 'MyComponent';
+   ```
+
+2. **Use useCallback for function props**
+   - Prevents recreation of functions on every render
+   - Critical for functions passed to memoized child components
+   ```tsx
+   const handlePress = useCallback(() => {
+     // logic here
+   }, [dependencies]);
+   ```
+
+3. **Use useMemo for expensive computations**
+   - Cache calculated values that don't change often
+   - Particularly important for Context values
+   ```tsx
+   const contextValue = useMemo(() => ({
+     // context values
+   }), [dependencies]);
+   ```
+
+4. **Memoize constants outside components**
+   - Move arrays/objects that don't change outside the component
+   ```tsx
+   const SEGMENT_ITEMS = [{ icon: 'home' }, { icon: 'settings' }];
+
+   export const MyComponent = () => {
+     // component code
+   };
+   ```
+
+5. **Optimize Context to prevent cascading re-renders**
+   - Always memoize Context Provider values
+   - Use useCallback for Context functions
+   - Split contexts if they update at different rates
 
 ### File Naming
 
